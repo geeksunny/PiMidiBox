@@ -1,0 +1,31 @@
+{
+  "devices": {
+    "Tbox1": {
+      "name": "Tbox 2X2",
+      "port": 0
+    },
+    "Tbox2": {
+      "name": "Tbox 2X2",
+      "port": 1
+    },
+    "Circuit": {
+      "name": "Circuit",
+      "port": 0
+    },
+    "Beatstep": {
+      "name": "Arturia BeatStep Pro",
+      "port": 0
+    }
+  },
+  "mappings": {
+    "BSP.master": {
+      "inputs": [
+        "Beatstep"
+      ],
+      "outputs": [
+        "Tbox2", "Tbox1"
+      ],
+      "listen-clock": true
+    }
+  }
+}
