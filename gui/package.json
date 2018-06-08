@@ -1,5 +1,5 @@
 {
-  "name": "pimidibox",
+  "name": "pimidibox-gui",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -9,6 +9,11 @@
   "author": "Justin Swanson <geeksunny@gmail.com>",
   "license": "ISC",
   "dependencies": {
-    "midi": "^0.9.5"
+    "blessed": "^0.1.81",
+    "chalk": "^2.4.1",
+    "clear": "^0.1.0",
+    "clui": "^0.3.6",
+    "figlet": "^1.2.0",
+    "inquirer": "^5.2.0"
   }
 }
