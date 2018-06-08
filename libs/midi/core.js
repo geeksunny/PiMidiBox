@@ -181,64 +181,14 @@ class Output extends Device {
     }
 }
 
-class Mapping {
-    // TODO: Channel filters; inputs only listen for messages on given channels, outputs only receive messages sent for given channels
-    // TODO: Features ala chord mode, etc are enabled / present here in the mapping class.
-    constructor(inputs = [], outputs = []) {
-        // TODO: Validate inputs/outputs?
-        this._inputs = inputs;
-        this._outputs = outputs;
-
-        // TODO:::::This is test code for simple routing. move into methods, clean up, add support for features (to be processed on message receive)
-        for (let input of inputs) {
-            input.bind((deltaTime, message) => {
-                console.log(`INPUT :: m: ${message} :: d: ${deltaTime}`);
-                this.broadcast(message);
-            });
-        }
-    }
-
-    broadcast(message) {
-        for (let i in this._outputs) {
-            let output = this._outputs[i];
-            output.sendMessage(message);
-        }
-    }
-}
-
 class Core {
     // TODO: Make into singleton using module.exports = new Core();
     // TODO: Core class can handle the switch-off between node-midi and node-midi-jack if added.
     // TODO: Core needs to maintain the pool of MIDI I/O objects. Close and re-use I/O as needed. Too many instantiations [new midi.input();] can cause a crash/memory leak (ALSA will crash.)
 
     constructor() {
-        this._router = new Router();
         this._inputs = {"active":{}, "recycle":[]};
         this._outputs = {"active":{}, "recycle":[]};
-    }
-
-    loadConfig(path = './config.json') {
-        let getPortRecords = (records, requested) => {
-            let reviewed = [], result = [];
-            let request;
-            while ((requested.length > 0) && (request = requested.shift())) {
-                if (reviewed.includes(request)) {
-                    continue;
-                }
-                let record = records[request];
-                record.nickname = request;
-                result.push(record);
-                reviewed.push(request);
-            }
-            return result;
-        };
-        let config = require(path);
-        for (let mapName in config.mappings) {
-            let mapCfg = config.mappings[mapName];
-            let inputs = this.openInputs(... getPortRecords(config.devices, mapCfg.inputs));
-            let outputs = this.openOutputs(... getPortRecords(config.devices, mapCfg.outputs));
-            this._router.addMapping(mapName, inputs, outputs);
-        }
     }
 
     // TODO: rename this method / it's parameters.
@@ -268,36 +218,9 @@ class Core {
     }
 }
 
-class Router {
-    constructor() {
-        this.mappings = {};
-    }
-
-    // TODO: Clock master / relay
-    // TODO: Add chord feature
-    // TODO: Add velocity regulation feature
-    // TODO: Add enable/disable feature for temporarily stopping all routing.
-
-    addMapping(name, inputs = [], outputs = []) {
-        // TODO: Should callbacks be passed in here? If not passed in, added
-        this.mappings[name] = new Mapping(inputs, outputs);
-    }
-
-    // TODO: removeMapping(name)
-
-    // TODO: Add note routing
-    onMessage(message) {
-        // TODO: Handle messages on input devices
-    }
-
-    routeNotes(mapping, notes) {
-
-    }
-}
-
 // class Monitor {
 //
 // }
 
 
-module.exports = {Core};    // TODO: expose only router? Have router reference a singleton Core object that is not exposed...
+module.exports = new Core();

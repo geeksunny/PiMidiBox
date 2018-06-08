@@ -25,7 +25,12 @@
       "outputs": [
         "Tbox2", "Tbox1"
       ],
-      "listen-clock": true
+      "listen-clock": true,
+      "listen-sysex": false,
+      "listen-active-sensing": false
     }
+  },
+  "options": {
+    "reload-on-usb": true
   }
 }
