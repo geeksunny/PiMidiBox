@@ -369,6 +369,11 @@ class Core {
     openOutputs(... ports) {
         return this._open(Output, this._outputs, ... ports);
     }
+
+    get deviceMap() {
+        // TODO: Change this up to leverage active/recycle i/o objects
+        return new Input().portMap;
+    }
 }
 
 // class Monitor {

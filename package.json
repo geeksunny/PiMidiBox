@@ -9,6 +9,8 @@
   "author": "Justin Swanson <geeksunny@gmail.com>",
   "license": "ISC",
   "dependencies": {
-    "midi": "^0.9.5"
+    "inquirer": "^6.0.0",
+    "midi": "^0.9.5",
+    "yargs": "^11.0.0"
   }
 }
