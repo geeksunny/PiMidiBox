@@ -1,0 +1,3 @@
+[submodule "node-midi"]
+	path = node-midi
+	url = git@github.com:geeksunny/node-midi.git

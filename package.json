@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "inquirer": "^6.0.0",
-    "midi": "^0.9.5",
+    "midi": "file:node-midi",
     "yargs": "^11.0.0"
   }
 }
