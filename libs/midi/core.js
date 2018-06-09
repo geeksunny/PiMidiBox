@@ -85,7 +85,8 @@ const Message = {
             }
             return {
                 type: Message.in.types[typeByte] || 'unknown',
-                msg: msg
+                msg: msg,
+                bytes: bytes
             };
         }
     },
@@ -303,7 +304,9 @@ class Input extends Device {
     }
 
     bind(onMessage) {
-        this._device.on('message', onMessage);
+        this._device.on('message', (deltaTime, msg) => {
+            onMessage(deltaTime, Message.in.parse(msg));
+        });
     }
 
     unbind(onMessage) {

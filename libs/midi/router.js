@@ -9,12 +9,23 @@ class Mapping {
         this._inputs = inputs;
         this._outputs = outputs;
 
-        // TODO:::::This is test code for simple routing. move into methods, clean up, add support for features (to be processed on message receive)
-        for (let input of inputs) {
-            input.bind((deltaTime, message) => {
-                console.log(`INPUT :: m: ${message} :: d: ${deltaTime}`);
-                this.broadcast(message);
-            });
+        this._handleMessage = (deltaTime, message) => {
+            console.log(`m: ${JSON.stringify(message)}`);
+            this.broadcast(message.bytes);
+        };
+
+        this.activate();
+    }
+
+    activate() {
+        for (let input of this._inputs) {
+            input.bind(this._handleMessage);
+        }
+    }
+
+    deactivate() {
+        for (let input of this._inputs) {
+            input.unbind(this._handleMessage);
         }
     }
 
@@ -77,3 +88,6 @@ class Router {
 
     }
 }
+
+
+module.exports = Router;
