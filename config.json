@@ -15,12 +15,16 @@
     "Beatstep": {
       "name": "Arturia BeatStep Pro",
       "port": 0
+    },
+    "Launchkey": {
+      "name": "Launchkey MK2 49",
+      "port": 0
     }
   },
   "mappings": {
     "BSP.master": {
       "inputs": [
-        "Beatstep"
+        "Beatstep", "Launchkey"
       ],
       "outputs": [
         "Tbox2", "Tbox1"
@@ -31,6 +35,6 @@
     }
   },
   "options": {
-    "reload-on-usb": true
+    "hotplug": true
   }
 }

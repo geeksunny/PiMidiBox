@@ -15,6 +15,7 @@ const PortRecord = {
     }
 };
 
+// TODO: Convert into class with getters that access the bytes directly
 const Message = {
     in: {
         types: {
@@ -169,7 +170,9 @@ const Message = {
 
 class Device {
     constructor() {
-        this._reset();
+        this._name = "";
+        this._port = -1;
+        this._nickname = undefined;
         this._device = this._create();
     }
 
@@ -185,78 +188,92 @@ class Device {
      * @private
      */
     _cleanup() {
+        // TODO: make this optional for subclasses?
         throw "Not implemented!";
     }
 
-    _reset() {
-        this._name = "";
-        this._port = -1;
-        this._nickname = undefined;
+    _onOpen() {
+        // Optional override
+    }
+
+    _onClose() {
+        // Optional override
     }
 
     open(name, portNumber, nickname) {
+        if (this.isOpen) {
+            // TODO: print warning?
+            return this;
+        }
+        if (!this._device) {
+            this._device = this._create();
+        }
+        this._name = name;
+        this._port = portNumber;
+        if (nickname) {
+            this._nickname = nickname;
+        }
         for (let i = 0; i < this._device.getPortCount(); i++) {
             let port = PortRecord.parse(this._device.getPortName(i));
             if (port.name === name && port.port === portNumber) {
                 this._device.openPort(i);
-                // TODO: Verify the .openPort() call was successful before setting names.
-                this._name = name;
-                this._port = portNumber;
-                if (nickname) {
-                    this._nickname = nickname;
-                }
-                return this;
+                this._onOpen();
+                break;
             }
-        }
-        return false;
-    }
-
-    openPort(number, nickname) {
-        this._device.openPort(number);
-        // TODO: Verify the .openPort() call was successful before setting names.
-        this._name = this._device.getPortName(number);
-        this._port = number;
-        if (nickname) {
-            this._nickname = nickname;
         }
         return this;
     }
 
-    batchOpen(... portRecords) {
-        let result = [];
-        let firstPort = portRecords.shift();
-        if (firstPort) {
-            result.push(this.open(firstPort.name, firstPort.port, firstPort.nickname));
+    openPort(number, nickname) {
+        if (this.isOpen) {
+            // TODO: print warning?
+            return this;
         }
-        let class_ = this.constructor;
-        if (portRecords.length === 1) {
-            result.push(new class_().open(portRecords[0].name, portRecords[0].port, portRecords[0].nickname));
-        } else {
-            let map = this.portMap;
-            for (let port of portRecords) {
-                if (map[port.name] && port.port in map[port.name]) {
-                    let additional = new class_();
-                    additional.openPort(map[port.name][port.port], port.nickname);
-                    result.push(additional);
-                }
-            }
+        if (!this._device) {
+            this._device = this._create();
         }
-        return result;
+        this._device.openPort(number);
+        let record = PortRecord.parse(this._device.getPortName(number));
+        this._name = record.name;
+        this._port = record.port;
+        if (nickname) {
+            this._nickname = nickname;
+        }
+        this._onOpen();
+        return this;
     }
 
     close(cleanup = true) {
-        if (cleanup) {
-            this._cleanup();
-            this._reset();
-        }
         if (this._device) {
+            if (cleanup) {
+                this._cleanup();
+            }
             this._device.closePort();
+            this._onClose();
+            this.release();
         }
     }
 
+    release() {
+        if (this._device) {
+            this._device.release();
+            delete this._device;
+        }
+    }
+
+    reopen() {
+        if (this._port === -1) {    // V
+            // TODO: print warning?
+            return;
+        }
+        if (this.isOpen) {
+            this.close();
+        }
+        this.open(this._name, this._port, this._nickname);
+    }
+
     get isOpen() {
-        // TODO: This method requires a fork to node-midi... look into alternative methods of checking port status, OR bring the fork in as a local dependency.
-        return this._device.isPortOpen();
+        return this._device && this._device.isPortOpen();
     }
 
     get name() {
@@ -270,11 +287,6 @@ class Device {
     get nickname() {
         return (this._nickname) ? this._nickname : this._name;
     }
-
-    // get device() {
-    //     // TODO: Should this be exposed?
-    //     return this._device;
-    // }
 
     get portMap() {
         let result = {};
@@ -299,7 +311,24 @@ class Input extends Device {
         return new midi.input();
     }
 
+    _onOpen() {
+        if (this._bindings) {
+            for (let callback of this._bindings) {
+                this._device.on('message', callback);
+            }
+            delete this._bindings;
+        }
+    }
+
+    _onClose() {
+        let bindings = this._device.listeners('message');
+        if (!!bindings.length) {
+            this._bindings = bindings;
+        }
+    }
+
     _cleanup() {
+        // TODO: Add way to transfer bindings between reopened connections.
         this.unbindAll();
     }
 
@@ -329,8 +358,9 @@ class Output extends Device {
     }
 
     sendMessage(message) {
-        // TODO: validate message? Use node-easymidi helper class for messages.
-        this._device.sendMessage(message);
+        if (this.isOpen) {
+            this._device.sendMessage(message);
+        }
     }
 }
 
@@ -340,26 +370,69 @@ class Core {
     // TODO: Core needs to maintain the pool of MIDI I/O objects. Close and re-use I/O as needed. Too many instantiations [new midi.input();] can cause a crash/memory leak (ALSA will crash.)
 
     constructor() {
-        this._inputs = {"active":{}, "recycle":[]};
-        this._outputs = {"active":{}, "recycle":[]};
+        this._inputs = {};
+        this._outputs = {};
+        this._usbDetect = undefined;
     }
 
-    // TODO: rename this method / it's parameters.
-    _recycleConnections(recycleables, ... portRecords) {
-        // TODO: recycleables.shift(), open(portRecord.name, portRecord.port);
-        // TODO: return opened connections ... Discard failed connection objects?
+    get hotplug() {
+        return this._usbDetect !== undefined;
+    }
+
+    set hotplug(enabled) {
+        // TODO: Should we restrict hotplugging from being enabled again after being disabled once?
+        //  https://github.com/MadLittleMods/node-usb-detection/issues/53
+        console.log(`setting hotplug: ${enabled}`);
+        if (this.hotplug === enabled) {
+            return;
+        }
+        if (enabled) {
+            this._usbDetect = require('usb-detection');
+            let detect = (event) => {
+                let add = (io) => {
+                    io.reopen();
+                };
+                let remove = (io) => {
+                    io.close(false);
+                };
+                let processor = event === 'add' ? add : remove;
+                return (device) => {
+                    let name = device.deviceName.replace(/_/g, ' ');
+                    console.log(`HOTPLUG : ${event} - ${name}`);
+                    let ins = this._inputs[name];
+                    let outs = this._outputs[name];
+                    for (let group of [ins, outs]) {
+                        if (group) {
+                            for (let io of group) {
+                                processor(io);
+                            }
+                        }
+                    }
+                }
+            };
+            this._usbDetect.on('add', detect('add'));
+            this._usbDetect.on('remove', detect('remove'));
+            this._usbDetect.startMonitoring();
+        } else {
+            this._usbDetect.removeAllListeners('add');
+            this._usbDetect.removeAllListeners('remove');
+            this._usbDetect.stopMonitoring();
+            delete this._usbDetect;
+        }
     }
 
     // noinspection JSMethodCanBeStatic
     _open(type, registry, ... ports) {
-        let device = new type();
-        // TODO: check pool of recycleables in registry, re-use if there.
-        // TODO: Check to see if any of the requested ports are already active.
-        let _opened = device.batchOpen(... ports);
-        for (let opened of _opened) {
-            registry.active[opened.nickname] = opened;
+        let opened = [];
+        for (let port of ports) {
+            let opening = new type().open(port.name, port.port, port.nickname);
+            opened.push(opening);
+            if (!registry[port.name]) {
+                registry[port.name] = [];
+            }
+            registry[port.name][port.port] = opening;
         }
-        return _opened;
+        return opened;
     }
 
     openInputs(... ports) {
@@ -371,8 +444,10 @@ class Core {
     }
 
     get deviceMap() {
-        // TODO: Change this up to leverage active/recycle i/o objects
-        return new Input().portMap;
+        let input = new Input();
+        let map = input.deviceMap;
+        input.release();
+        return map;
     }
 }
 

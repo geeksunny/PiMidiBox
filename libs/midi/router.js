@@ -70,6 +70,7 @@ class Router {
             let outputs = midi.openOutputs(... getPortRecords(config.devices, mapCfg.outputs));
             this.addMapping(mapName, inputs, outputs);
         }
+        midi.hotplug = config.options.hotplug;
     }
 
     addMapping(name, inputs = [], outputs = []) {
