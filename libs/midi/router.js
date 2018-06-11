@@ -4,6 +4,7 @@ const midi = require('./core');
  * onMessage callbacks handle incoming MIDI messages with regards to the mapping.
  *
  * @callback mappingMessageHandler
+ * @param {Device} device - The MIDI device object sending the message.
  * @param {Message} message - MIDI message received from the input.
  * @param {Mapping} mapping - A reference to the mapping object issuing the message.
  */
@@ -58,8 +59,8 @@ class Mapping {
             // TODO: Print warning / throw error?
             return false;
         }
-        this._onMessage = (message) => {
-            onMessage(message, this);
+        this._onMessage = (device, message) => {
+            onMessage(device, message, this);
         };
         for (let input of this._inputs) {
             input.bind(this._onMessage);
@@ -131,7 +132,7 @@ class Router {
             }
             return result;
         };
-        let onMessage = (message, mapping) => {
+        let onMessage = (device, message, mapping) => {
             console.log(`m: ${JSON.stringify(message)}`);
             mapping.broadcast(message.bytes);
         };

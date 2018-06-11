@@ -1,5 +1,13 @@
 const midi = require('midi');
 
+/**
+ * onMessage callbacks handle incoming MIDI messages with regards to the mapping.
+ *
+ * @callback deviceMessageHandler
+ * @param {Device} device - The MIDI device object sending the message.
+ * @param {Message} message - MIDI message received from the input.
+ */
+
 
 const PortRecord = {
     create: (name, port) => {
@@ -335,7 +343,7 @@ class Input extends Device {
 
     bind(onMessage) {
         this._device.on('message', (deltaTime, msg) => {
-            onMessage(Message.in.parse(msg, deltaTime));
+            onMessage(this, Message.in.parse(msg, deltaTime));
         });
     }
 
