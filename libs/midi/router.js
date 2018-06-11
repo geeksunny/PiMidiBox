@@ -1,34 +1,92 @@
 const midi = require('./core');
 
+/**
+ * onMessage callbacks handle incoming MIDI messages with regards to the mapping.
+ *
+ * @callback mappingMessageHandler
+ * @param {Message} message - MIDI message received from the input.
+ * @param {Mapping} mapping - A reference to the mapping object issuing the message.
+ */
 
+/**
+ * Class to facilitate the mapping of MIDI messages from multiple inputs to multiple outputs.
+ */
 class Mapping {
     // TODO: Channel filters; inputs only listen for messages on given channels, outputs only receive messages sent for given channels
     // TODO: Features ala chord mode, etc are enabled / present here in the mapping class.
+
+    /**
+     *
+     * @param {Input[]} inputs - Array of inputs to map from.
+     * @param {Output[]} outputs - Array of Outputs to map to.
+     */
     constructor(inputs = [], outputs = []) {
         // TODO: Validate inputs/outputs?
-        this._inputs = inputs;
-        this._outputs = outputs;
+        this._inputs = [... inputs];
+        this._outputs = [... outputs];
+        this._activated = false;
+        this._onMessage = undefined;
+    }
 
-        this._handleMessage = (deltaTime, message) => {
-            console.log(`m: ${JSON.stringify(message)}`);
-            this.broadcast(message.bytes);
+    /**
+     * Get an array of the mapping's inputs.
+     * @returns {Input[]}
+     */
+    get inputs() {
+        return [... this._inputs];
+    }
+
+    /**
+     * Get an array of the mapping's outputs.
+     * @returns {Output[]}
+     */
+    get outputs() {
+        return [... this._outputs];
+    }
+
+    /**
+     * Activate message handling on this mapping's inputs.
+     * @param {mappingMessageHandler} onMessage - Callback function for handling input messages.
+     * @returns {boolean} - True if the mapping was successfully activated.
+     */
+    activate(onMessage) {
+        if (this._activated) {
+            return false;
+        }
+        this._activated = true;
+        if (!onMessage || !(onMessage instanceof Function)) {
+            // TODO: Print warning / throw error?
+            return false;
+        }
+        this._onMessage = (message) => {
+            onMessage(message, this);
         };
-
-        this.activate();
-    }
-
-    activate() {
         for (let input of this._inputs) {
-            input.bind(this._handleMessage);
+            input.bind(this._onMessage);
         }
+        return true;
     }
 
+    /**
+     * Deactivate message handling on this mapping's inputs.
+     * @returns {boolean} - True if the mapping was successfully deactivated.
+     */
     deactivate() {
-        for (let input of this._inputs) {
-            input.unbind(this._handleMessage);
+        if (!this._activated) {
+            return false;
         }
+        this._activated = false;
+        for (let input of this._inputs) {
+            input.unbind(this._onMessage);
+        }
+        delete this._onMessage;
+        return true;
     }
 
+    /**
+     * Send a message to all outputs of this mapping.
+     * @param {Message} message - The message to send.
+     */
     broadcast(message) {
         for (let i in this._outputs) {
             let output = this._outputs[i];
@@ -37,10 +95,11 @@ class Mapping {
     }
 }
 
-// TODO: Add listen-* options, reload-on-usb to Router class. Fix up .loadConfig()
+// TODO: Add listen-* options
 class Router {
     constructor() {
-        this.mappings = {};
+        this._mappings = {};
+        this._started = false;
     }
 
     // TODO: Clock master / relay
@@ -48,7 +107,16 @@ class Router {
     // TODO: Add velocity regulation feature
     // TODO: Add enable/disable feature for temporarily stopping all routing.
 
-    loadConfig(path = './config.json') {
+    /**
+     * Start the router with a json configuration file.
+     * @param {string} path - Path to the json configuration file.
+     * @returns {boolean} - True if the router was started successfully.
+     */
+    loadConfig(path) {
+        if (this._started) {
+            // TODO: Print warning?
+            return false;
+        }
         let getPortRecords = (records, requested) => {
             let reviewed = [], result = [];
             let request;
@@ -63,30 +131,52 @@ class Router {
             }
             return result;
         };
+        let onMessage = (message, mapping) => {
+            console.log(`m: ${JSON.stringify(message)}`);
+            mapping.broadcast(message.bytes);
+        };
         let config = require(path);
+        if (config && config.mappings) {
+            this._started = true;
+        }
         for (let mapName in config.mappings) {
             let mapCfg = config.mappings[mapName];
             let inputs = midi.openInputs(... getPortRecords(config.devices, mapCfg.inputs));
             let outputs = midi.openOutputs(... getPortRecords(config.devices, mapCfg.outputs));
-            this.addMapping(mapName, inputs, outputs);
+            this.addMapping(mapName, inputs, outputs, onMessage);
         }
         midi.hotplug = config.options.hotplug;
+        return true;
     }
 
-    addMapping(name, inputs = [], outputs = []) {
-        // TODO: Should callbacks be passed in here? If not passed in, added
-        this.mappings[name] = new Mapping(inputs, outputs);
+    /**
+     * Add a new MIDI mapping to this router.
+     * @param {string} name - Name of the mapping.
+     * @param {Input[]} inputs - Array of Inputs to map from.
+     * @param {Output[]} outputs - Array of Outputs to map to.
+     * @param {mappingMessageHandler} onMessage - Callback function for handling input messages.
+     */
+    addMapping(name, inputs, outputs, onMessage) {
+        if (this._mappings[name]) {
+            // Mapping by this name already exists.
+            // TODO: Print warning?
+            return;
+        }
+        this._mappings[name] = new Mapping(inputs, outputs);
+        this._mappings[name].activate(onMessage);
     }
 
-    // TODO: removeMapping(name)
-
-    // TODO: Add note routing
-    onMessage(message) {
-        // TODO: Handle messages on input devices
-    }
-
-    routeNotes(mapping, notes) {
-
+    /**
+     * Remove a specific mapping.
+     * @param {string} name - The name of the mapping to be removed.
+     */
+    removeMapping(name) {
+        if (!this._mappings[name]) {
+            // TODO: Print warning?
+            return;
+        }
+        this._mappings[name].deactivate();
+        delete this._mappings[name];
     }
 }
 

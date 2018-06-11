@@ -40,7 +40,7 @@ const Message = {
             0xFC: 'stop',
             0xFF: 'reset'
         },
-        parse: (bytes) => {
+        parse: (bytes, deltaTime) => {
             let typeByte, msg = {};
             if (bytes[0] < 0xF0) {
                 // basic
@@ -87,7 +87,8 @@ const Message = {
             return {
                 type: Message.in.types[typeByte] || 'unknown',
                 msg: msg,
-                bytes: bytes
+                bytes: bytes,
+                deltaTime: deltaTime
             };
         }
     },
@@ -334,7 +335,7 @@ class Input extends Device {
 
     bind(onMessage) {
         this._device.on('message', (deltaTime, msg) => {
-            onMessage(deltaTime, Message.in.parse(msg));
+            onMessage(Message.in.parse(msg, deltaTime));
         });
     }
 
