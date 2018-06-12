@@ -142,7 +142,8 @@ class Router {
         }
         for (let mapName in config.mappings) {
             let mapCfg = config.mappings[mapName];
-            let inputs = midi.openInputs(... getPortRecords(config.devices, mapCfg.inputs));
+            // TODO: listenFlags should probably be on input-by-input basis rather than whole mapping
+            let inputs = midi.openInputs(mapCfg.listen, ... getPortRecords(config.devices, mapCfg.inputs));
             let outputs = midi.openOutputs(... getPortRecords(config.devices, mapCfg.outputs));
             this.addMapping(mapName, inputs, outputs, onMessage);
         }

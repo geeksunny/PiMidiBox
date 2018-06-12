@@ -313,8 +313,13 @@ class Device {
 }
 
 class Input extends Device {
-
     // TODO: Subclass Input for ClockMasterInput?
+    constructor() {
+        super();
+        this._listenSysex = false;
+        this._listenClock = false;
+        this._listenActiveSense = false;
+    }
 
     _create() {
         return new midi.input();
@@ -327,6 +332,7 @@ class Input extends Device {
             }
             delete this._bindings;
         }
+        this._setupListenTypes(false);
     }
 
     _onClose() {
@@ -337,7 +343,6 @@ class Input extends Device {
     }
 
     _cleanup() {
-        // TODO: Add way to transfer bindings between reopened connections.
         this.unbindAll();
     }
 
@@ -353,6 +358,48 @@ class Input extends Device {
 
     unbindAll() {
         this._device.removeAllListeners('message');
+    }
+
+    get listenSysex() {
+        return this._listenSysex;
+    }
+
+    set listenSysex(listen) {
+        if (this._listenSysex === listen || typeof listen !== 'boolean') {
+            return;
+        }
+        this._listenSysex = listen;
+        this._setupListenTypes(true);
+    }
+
+    get listenClock() {
+        return this._listenClock;
+    }
+
+    set listenClock(listen) {
+        if (this._listenClock === listen || typeof listen !== 'boolean') {
+            return;
+        }
+        this._listenClock = listen;
+        this._setupListenTypes(true);
+    }
+
+    get listenActiveSense() {
+        return this._listenActiveSense;
+    }
+
+    set listenActiveSense(listen) {
+        if (this._listenActiveSense === listen || typeof listen !== 'boolean') {
+            return;
+        }
+        this._listenActiveSense = listen;
+        this._setupListenTypes(true);
+    }
+
+    _setupListenTypes(changed) {
+        if (this.isOpen && (changed || (this._listenSysex || this._listenClock || this._listenActiveSense))) {
+            this._device.ignoreTypes(!this._listenSysex, !this._listenClock, !this._listenActiveSense);
+        }
     }
 }
 
@@ -444,8 +491,16 @@ class Core {
         return opened;
     }
 
-    openInputs(... ports) {
-        return this._open(Input, this._inputs, ... ports);
+    openInputs(listenFlags, ... ports) {
+        let inputs = this._open(Input, this._inputs, ... ports);
+        if (listenFlags) {
+            for (let input of inputs) {
+                input.listenSysex = listenFlags.sysex;
+                input.listenClock = listenFlags.clock;
+                input.listenActiveSense = listenFlags.activeSense;
+            }
+        }
+        return inputs;
     }
 
     openOutputs(... ports) {
