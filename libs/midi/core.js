@@ -438,8 +438,7 @@ class Core {
     set hotplug(enabled) {
         // TODO: Should we restrict hotplugging from being enabled again after being disabled once?
         //  https://github.com/MadLittleMods/node-usb-detection/issues/53
-        console.log(`setting hotplug: ${enabled}`);
-        if (this.hotplug === enabled) {
+        if (this.hotplug === enabled || typeof enabled !== 'boolean') {
             return;
         }
         if (enabled) {
@@ -512,6 +511,18 @@ class Core {
         let map = input.deviceMap;
         input.release();
         return map;
+    }
+
+    onExit() {
+        this.hotplug = false;
+        for (let registry of [this._inputs, this._outputs]) {
+            for (let name in registry) {
+                for (let port in registry[name]) {
+                    registry[name][port].close();
+                    delete registry[name][port];
+                }
+            }
+        }
     }
 }
 

@@ -52,5 +52,14 @@ if (argv.configure) {
     const Router = require('./libs/midi/router');
     const midiRouter = new Router();
     midiRouter.loadConfig(argv.config);
+    ['exit', 'SIGINT', 'SIGUSR1', 'SIGUSR2', 'uncaughtException', 'SIGTERM'].forEach((event) => {
+        process.on(event, (err) => {
+            console.log(`Exit event detected - ${event}`);
+            if (err) {
+                console.log(err);
+            }
+            midiRouter.onExit();
+        });
+    });
     console.log('Ready.');
 }

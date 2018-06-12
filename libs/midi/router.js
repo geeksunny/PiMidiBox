@@ -180,6 +180,14 @@ class Router {
         this._mappings[name].deactivate();
         delete this._mappings[name];
     }
+
+    onExit() {
+        for (let name in this._mappings) {
+            this._mappings[name].deactivate();
+            delete this._mappings[name];
+        }
+        midi.onExit();
+    }
 }
 
 
