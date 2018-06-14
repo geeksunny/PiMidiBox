@@ -442,37 +442,30 @@ class Core {
             return;
         }
         if (enabled) {
-            this._usbDetect = require('usb-detection');
-            let detect = (event) => {
-                let add = (io) => {
-                    io.reopen();
-                };
-                let remove = (io) => {
-                    io.close(false);
-                };
-                let processor = event === 'add' ? add : remove;
-                return (device) => {
-                    let name = device.deviceName.replace(/_/g, ' ');
-                    console.log(`HOTPLUG : ${event} - ${name}`);
-                    let ins = this._inputs[name];
-                    let outs = this._outputs[name];
-                    for (let group of [ins, outs]) {
-                        if (group) {
-                            for (let io of group) {
-                                processor(io);
-                            }
+            let add = (io) => {
+                io.reopen();
+            };
+            let remove = (io) => {
+                io.close(false);
+            };
+            this._usb = require('../usb');
+            this._usb.Monitor.watchDevices((event, device) => {
+                let processor = event === this._usb.Event.ADD ? add : remove;
+                console.log(`Hotplug : ${event} - ${device.name}`);
+                let ins = this._inputs[device.name];
+                let outs = this._outputs[device.name];
+                for (let group of [ins, outs]) {
+                    if (group) {
+                        for (let io of group) {
+                            processor(io);
                         }
                     }
                 }
-            };
-            this._usbDetect.on('add', detect('add'));
-            this._usbDetect.on('remove', detect('remove'));
-            this._usbDetect.startMonitoring();
+            });
+            this._usb.Monitor.startMonitoring();
         } else {
-            this._usbDetect.removeAllListeners('add');
-            this._usbDetect.removeAllListeners('remove');
-            this._usbDetect.stopMonitoring();
-            delete this._usbDetect;
+            this._usb.Monitor.stopMonitoring();
+            delete this._usb;
         }
     }
 
