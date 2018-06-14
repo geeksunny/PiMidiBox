@@ -9,6 +9,7 @@ const argv = require('yargs')
     .option('c', {
         alias: 'config',
         default: `${__dirname}/config.json`,
+        description: 'Path to configuration file',
         type: 'string'
     })
     .option('configure', {
@@ -22,10 +23,10 @@ const argv = require('yargs')
         description: 'List all connected MIDI devices',
         type: 'boolean'
     })
-    .option('r', {
-        alias: 'reload-usb',
+    .option('h', {
+        alias: 'hotplug',
         default: true,
-        description: 'reload routing map on new USB connections',
+        description: 'Maintain device connections after starting the router',
         type: 'boolean'
     })
     .argv;

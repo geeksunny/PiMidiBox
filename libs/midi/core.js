@@ -271,9 +271,9 @@ class Device {
     }
 
     reopen() {
-        if (this._port === -1) {    // V
+        if (this._port === -1) {
             // TODO: print warning?
-            return;
+            return this;
         }
         if (this.isOpen) {
             this.close();
@@ -358,6 +358,14 @@ class Input extends Device {
 
     unbindAll() {
         this._device.removeAllListeners('message');
+    }
+
+    get listenFlags() {
+        return {
+            sysex: this._listenSysex,
+            clock: this._listenClock,
+            activeSense: this._listenActiveSense
+        }
     }
 
     get listenSysex() {
@@ -501,7 +509,7 @@ class Core {
 
     get deviceMap() {
         let input = new Input();
-        let map = input.deviceMap;
+        let map = input.portMap;
         input.release();
         return map;
     }
