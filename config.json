@@ -19,22 +19,56 @@
     "Launchkey": {
       "name": "Launchkey MK2 49",
       "port": 0
+    },
+    "Monostation": {
+      "name": "Circuit Mono Station",
+      "port": 0
     }
   },
   "mappings": {
-    "BSP.master": {
+    "Master": {
+      "inputs": [
+        "Beatstep", "Launckey"
+      ],
+      "outputs": [
+        "Tbox2", "Tbox1", "Circuit", "Monostation"
+      ],
+      "channels": {
+        "blacklist": [3, 4, 5, 6]
+      },
+      "listen": {
+        "clock": true,
+        "sysex": false,
+        "activeSense": false
+      }
+    },
+    "Only.Circuit": {
       "inputs": [
         "Beatstep", "Launchkey"
       ],
       "outputs": [
-        "Tbox2", "Tbox1"
+        "Tbox1", "Circuit"
       ],
-      "listen-clock": true,
-      "listen-sysex": false,
-      "listen-active-sensing": false
+      "channels": {
+        "whitelist": [3, 4],
+        "map": {"3":1, "4":2}
+      }
+    },
+    "Only.Monostation": {
+      "inputs": [
+        "Beatstep", "Launchkey"
+      ],
+      "outputs": [
+        "Monostation"
+      ],
+      "channels": {
+        "whitelist": [5, 6],
+        "map": {"5":1, "6":2}
+      }
     }
   },
   "options": {
-    "hotplug": true
+    "hotplug": true,
+    "verbose": false
   }
 }
