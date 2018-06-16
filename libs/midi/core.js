@@ -23,158 +23,227 @@ const PortRecord = {
     }
 };
 
-// TODO: Convert into class with getters that access the bytes directly
-const Message = {
-    in: {
-        types: {
-            // basic
-            0x08: 'noteoff',
-            0x09: 'noteon',
-            0x0A: 'poly aftertouch',
-            0x0B: 'cc',
-            0x0C: 'program',
-            0x0D: 'channel aftertouch',
-            0x0E: 'pitch',
-            // extended
-            0xF0: 'sysex',
-            0xF1: 'mtc',
-            0xF2: 'position',
-            0xF3: 'select',
-            0xF6: 'tune',
-            0xF7: 'sysex end',
-            0xF8: 'clock',
-            0xFA: 'start',
-            0xFB: 'continue',
-            0xFC: 'stop',
-            0xFF: 'reset'
-        },
-        parse: (bytes, deltaTime) => {
-            let typeByte, msg = {};
-            if (bytes[0] < 0xF0) {
-                // basic
-                typeByte = bytes[0] >> 4;
-                msg.channel = bytes[0] & 0xF;
-            } else {
-                // extended
-                typeByte = bytes[0];
-            }
-            switch (typeByte) {
-                // basic
-                case 0x08:  // noteoff
-                case 0x09:  // noteon
-                    msg.note = bytes[1];
-                    msg.velocity = bytes[2];
-                    break;
-                case 0x0A:  // poly aftertouch
-                    msg.note = bytes[1];
-                    msg.pressure = bytes[2];
-                    break;
-                case 0x0B:  // cc
-                    msg.controller = bytes[1];
-                    msg.value = bytes[2];
-                    break;
-                case 0x0C:  // program
-                    msg.number = bytes[1];
-                    break;
-                case 0x0D:  // channel aftertouch
-                    msg.pressure = bytes[1];
-                    break;
-                case 0x0E:  // pitch
-                // extended
-                case 0xF2:  // position
-                    msg.value = bytes[1] + (bytes[2] * 128);
-                    break;
-                case 0xF0:  // sysex
-                    msg.bytes = bytes;
-                    break;
-                case 0xF1:  // mtc
-                    msg.type = (bytes[1] >> 4) & 0x07;
-                    msg.value = bytes[1] & 0x0F;
-                    break;
-            }
-            return {
-                type: Message.in.types[typeByte] || 'unknown',
-                msg: msg,
-                bytes: bytes,
-                deltaTime: deltaTime
-            };
-        }
+const byteToStringTypeMap = {
+    // basic
+    0x08: 'noteoff',
+    0x09: 'noteon',
+    0x0A: 'poly aftertouch',
+    0x0B: 'cc',
+    0x0C: 'program',
+    0x0D: 'channel aftertouch',
+    0x0E: 'pitch',
+    // extended
+    0xF0: 'sysex',
+    0xF1: 'mtc',
+    0xF2: 'position',
+    0xF3: 'select',
+    0xF6: 'tune',
+    0xF7: 'sysex end',
+    0xF8: 'clock',
+    0xFA: 'start',
+    0xFB: 'continue',
+    0xFC: 'stop',
+    0xFF: 'reset'
+};
+
+const stringToByteTypeMap = {
+    basic: {
+        'noteoff': 0x08,
+        'noteon': 0x09,
+        'poly aftertouch': 0x0A,
+        'cc': 0x0B,
+        'program': 0x0C,
+        'channel aftertouch': 0x0D,
+        'pitch': 0x0E
     },
-    out: {
-        types: {
-            basic: {
-                'noteoff': 0x08,
-                'noteon': 0x09,
-                'poly aftertouch': 0x0A,
-                'cc': 0x0B,
-                'program': 0x0C,
-                'channel aftertouch': 0x0D,
-                'pitch': 0x0E
-            },
-            extended: {
-                'sysex': 0xF0,
-                'mtc': 0xF1,
-                'position': 0xF2,
-                'select': 0xF3,
-                'tune': 0xF6,
-                'sysex end': 0xF7,
-                'clock': 0xF8,
-                'start': 0xFA,
-                'continue': 0xFB,
-                'stop': 0xFC,
-                'reset': 0xFF
-            }
-        },
-        parse: (type, args) => {
-            let typeByte, bytes = [];
-            if (Message.out.types.basic[type]) {
-                args.channel = args.channel || 0;
-                typeByte = Message.out.types.basic[type];
-                bytes.push((typeByte << 4) + args.channel);
-            } else if (Message.out.types.extended[type]) {
-                typeByte = Message.out.types.extended[type];
-                bytes.push(typeByte);
-            } else {
-                throw `Unknown midi message type: ${type}`;
-            }
-            switch (typeByte) {
-                // basic
-                case 0x08:  // noteoff
-                case 0x09:  // noteon
-                    bytes.push(args.note, args.velocity);
-                    break;
-                case 0x0A:  // poly aftertouch
-                    bytes.push(args.note, args.pressure);
-                    break;
-                case 0x0B:  // cc
-                    bytes.push(args.controller, args.value);
-                    break;
-                case 0x0C:  // program
-                    bytes.push(args.number);
-                    break;
-                case 0x0D:  // channel aftertouch
-                    bytes.push(args.pressure);
-                    break;
-                case 0x0E:  // pitch
-                // extended
-                case 0xF2:  // position
-                    bytes.push(args.value & 0x7F);  // lsb
-                    bytes.push((args.value & 0x3F80) >> 7); // msb
-                    break;
-                case 0xF0:  // sysex
-                    if (args.length < 4 || args[0] != 0xF0 || args[args.length - 1] != 0xF7) {
-                        throw "Sysex args must be an array starting with 0xF0 and ending with 0xF7";
-                    }
-                    bytes.push(... args.slice(1));
-                    break;
-                case 0xF3:  // select
-                    bytes.push(args.song);
-                    break;
-            }
-            return bytes;
-        }
+    extended: {
+        'sysex': 0xF0,
+        'mtc': 0xF1,
+        'position': 0xF2,
+        'select': 0xF3,
+        'tune': 0xF6,
+        'sysex end': 0xF7,
+        'clock': 0xF8,
+        'start': 0xFA,
+        'continue': 0xFB,
+        'stop': 0xFC,
+        'reset': 0xFF
     }
 };
+
+class Message {
+    static fromProperties(type, properties) {
+        let message = new Message();
+        message.typeString = type;
+        for (let name in properties) {
+            message[name] = properties[name];
+        }
+        return message;
+    }
+
+    constructor(bytes = [0, 0, 0], additionalProperties = {}) {
+        // TODO: validate the 3 byte values?
+        this._bytes = [bytes[0], bytes[1], bytes[2]];
+        this._properties = [];
+        this._lastType = undefined;
+        this._updateProperties(this.type);
+        this._additionalProperties = {};
+        for (let key in additionalProperties) {
+            this.addAdditionalProperty(key, additionalProperties[key]);
+        }
+    }
+
+    _updateProperties(type) {
+        if (this._lastType === type) {
+            return;
+        }
+        this._lastType = type;
+        let get = (index) => {
+            return () => {
+                return this._bytes[index];
+            }
+        };
+        let set = (index) => {
+            return (value) => {
+                this._bytes[index] = value;
+            }
+        };
+        let addProp = (name, getter, setter) => {
+            Object.defineProperty(this, name, {
+                get: getter,
+                set: setter,
+                enumerable: true,
+                configurable: true
+            });
+            this._properties.push(name);
+        };
+        // Remove any existing properties
+        for (let name of this._properties) {
+            delete this[name];
+        }
+        // Add relevant properties
+        switch (type) {
+            // basic
+            case 0x08:  // noteoff
+            case 0x09:  // noteon
+                addProp('note', get(1), set(1));
+                addProp('velocity', get(2), set(2));
+                break;
+            case 0x0A:  // poly aftertouch
+                addProp('note', get(1), set(1));
+                addProp('pressure', get(2), set(2));
+                break;
+            case 0x0B:  // cc
+                addProp('controller', get(1), set(1));
+                addProp('value', get(2), set(2));
+                break;
+            case 0x0C:  // program
+                addProp('number', get(1), set(1));
+                break;
+            case 0x0D:  // channel aftertouch
+                addProp('pressure', get(1), set(1));
+                break;
+            case 0x0E:  // pitch
+            // extended
+            case 0xF2:  // position
+                addProp('value', () => {
+                    return this._bytes[1] + (this._bytes[2] * 128);
+                }, (value) => {
+                    this._bytes[1] = value & 0x7F;              // lsb
+                    this._bytes[2] = ((value & 0x3F80) >> 7);   // msb
+                });
+                break;
+            case 0xF0:  // sysex
+                addProp('bytes', () => {
+                    return [... this._bytes];
+                }, (value) => {
+                    // TODO: set: bytes?? Add to base class and call here
+                });
+                break;
+            case 0xF1:  // mtc
+                addProp('type', () => {
+                    return (this._bytes[1] >> 4) & 0x07;
+                }, (value) => {
+                    // TODO: set: mtc.type
+                });
+                addProp('value', () => {
+                    return this._bytes[1] & 0x0F;
+                }, (value) => {
+                    // TODO: set: mtc.value
+                });
+                break;
+            case 0xF3:  // select
+                addProp('song', get(1), set(1));
+                break;
+        }
+    }
+
+    addAdditionalProperty(key, value) {
+        this._additionalProperties[key] = value;
+    }
+
+    removeAdditionalProperty(key) {
+        if (this._additionalProperties[key]) {
+            delete this._additionalProperties[key];
+        }
+    }
+
+    get channel() {
+        return (this.isTypeBasic)
+            ? this._bytes[0] & 0xF
+            : -1;
+    }
+
+    set channel(channel) {
+        if (this.isTypeBasic) {
+            this._bytes[0] = (this.type << 4) + channel;
+        }
+    }
+
+    get type() {
+        return (this.isTypeBasic)
+            ? this._bytes[0] >> 4
+            : this._bytes[0];
+    }
+
+    set type(type) {
+        this._bytes[0] = (type < 0xF0)
+            ? type >> 4
+            : type;
+        this._updateProperties(type);
+    }
+
+    get typeString() {
+        return byteToStringTypeMap[this.type];
+    }
+
+    set typeString(typeString) {
+        if (typeString in stringToByteTypeMap.basic) {
+            this.type = stringToByteTypeMap.basic[typeString];
+        } else if (typeString in stringToByteTypeMap.extended) {
+            this.type = stringToByteTypeMap.extended[typeString];
+        }
+    }
+
+    get isTypeBasic() {
+        return this._bytes[0] < 0xF0;
+    }
+
+    get isTypeExtended() {
+        return this._bytes[0] >= 0xF0;
+    }
+
+    get properties() {
+        let props = {};
+        for (let name of this._properties) {
+            props[name] = this[name];
+        }
+        for (let name in this._additionalProperties) {
+            props[name] = this._additionalProperties[name];
+        }
+        return props;
+    }
+}
 
 
 class Device {
@@ -532,4 +601,4 @@ class Core {
 // }
 
 
-module.exports = new Core();
+module.exports = { Core: new Core(), Message: Message };
