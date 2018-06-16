@@ -88,7 +88,7 @@ class ChannelFilter extends Filter {
         if (channel.toString() in this._map) {
             console.log(`Remapped! ${channel}->${this._map[channel]}`);
             // TODO: Revisit when midi.Message has been rewritten
-            return midi.Message.parse(message.type, {channel: this._map[channel] - 1});
+            message.channel = this._map[channel] - 1;
         }
         return message;
     }
