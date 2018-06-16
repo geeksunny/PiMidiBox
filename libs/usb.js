@@ -84,6 +84,7 @@ class UsbMonitor {
         usbDetect.on('remove', (device) => {
             this._onRemove(device);
         });
+        usbDetect.startMonitoring();
     }
 
     stopMonitoring() {
@@ -158,13 +159,13 @@ class UsbMonitor {
                 if (result.result) {
                     this._dispatchEvent(event, this._driveHandlers, new Drive(result.drive));
                 } else {
-                    this._dispatchEvent(event, this._usbHandlers, device);
+                    this._dispatchEvent(event, this._usbHandlers, new UsbDevice(device));
                 }
             }).catch((err) => {
                 throw err;
             });
         } else {
-            this._dispatchEvent(event, this._usbHandlers, device);
+            this._dispatchEvent(event, this._usbHandlers, new UsbDevice(device));
         }
     }
 

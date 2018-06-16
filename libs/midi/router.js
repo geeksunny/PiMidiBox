@@ -73,7 +73,7 @@ class ChannelFilter extends Filter {
     }
 
     process(message) {
-        let channel = message.msg.channel + 1;
+        let channel = message.channel + 1;
         if (!!this._whitelist.length) {
             if (!(channel in this._whitelist)) {
                 console.log(`Channel is not whitelisted! ${channel}`);

@@ -154,7 +154,7 @@ class Message {
                 });
                 break;
             case 0xF0:  // sysex
-                addProp('bytes', () => {
+                addProp('body', () => { // formally 'bytes' but clashed with base-class
                     return [... this._bytes];
                 }, (value) => {
                     // TODO: set: bytes?? Add to base class and call here
@@ -179,6 +179,7 @@ class Message {
     }
 
     addAdditionalProperty(key, value) {
+        // TODO: Should these additionalProperties be added with Object.defineProperty?
         this._additionalProperties[key] = value;
     }
 
@@ -187,6 +188,12 @@ class Message {
             delete this._additionalProperties[key];
         }
     }
+
+    get bytes() {
+        return [... this._bytes];
+    }
+
+    // TODO: setter for changing out message bytes array directly?
 
     get channel() {
         return (this.isTypeBasic)
@@ -345,7 +352,7 @@ class Device {
             return this;
         }
         if (this.isOpen) {
-            this.close();
+            this.close(false);
         }
         this.open(this._name, this._port, this._nickname);
     }
@@ -416,17 +423,23 @@ class Input extends Device {
     }
 
     bind(onMessage) {
-        this._device.on('message', (deltaTime, msg) => {
-            onMessage(this, Message.in.parse(msg, deltaTime));
-        });
+        if (this._device) {
+            this._device.on('message', (deltaTime, msg) => {
+                onMessage(this, new Message(msg, {deltaTime}));
+            });
+        }
     }
 
     unbind(onMessage) {
-        this._device.removeListener('message', onMessage);
+        if (this._device) {
+            this._device.removeListener('message', onMessage);
+        }
     }
 
     unbindAll() {
-        this._device.removeAllListeners('message');
+        if (this._device) {
+            this._device.removeAllListeners('message');
+        }
     }
 
     get listenFlags() {
@@ -528,7 +541,7 @@ class Core {
             this._usb = require('../usb');
             this._usb.Monitor.watchDevices((event, device) => {
                 let processor = event === this._usb.Event.ADD ? add : remove;
-                console.log(`Hotplug : ${event} - ${device.name}`);
+                console.log(`Hotplug : ${event.toString()} - ${device.name}`);
                 let ins = this._inputs[device.name];
                 let outs = this._outputs[device.name];
                 for (let group of [ins, outs]) {
@@ -550,6 +563,10 @@ class Core {
     _open(type, registry, ... ports) {
         let opened = [];
         for (let port of ports) {
+            if (registry[port.name] && registry[port.name][port.port]) {
+                opened.push(registry[port.name][port.port]);
+                continue;
+            }
             let opening = new type().open(port.name, port.port, port.nickname);
             opened.push(opening);
             if (!registry[port.name]) {
