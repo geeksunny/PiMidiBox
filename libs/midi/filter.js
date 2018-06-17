@@ -1,3 +1,5 @@
+const tools = require('../tools');
+
 /**
  * Interface for filters processing received MIDI messages.
  *
@@ -83,4 +85,63 @@ class ChannelFilter extends Filter {
     }
 }
 
-module.exports = { Filter, ChannelFilter };
+const Velocity = {
+    min: 0,
+    max: 127 /*, mode: tools.enum('CLIP', 'DROP', 'SCALED')*/
+};
+
+class VelocityFilter extends Filter {
+    /**
+     * // TODO: desc
+     * @param {Object} opts - An object containing one or more of the parameters listed below.
+     * @param {Number} [opts.min] - The minimum allowable velocity value.
+     * Must be an integer between 0-127. Default is 0.
+     * @param {Number} [opts.max] - The maximum allowable velocity value.
+     * Must be an integer between 0-127 and equal to or higher than `opts.min`. Default is 127.
+     * @param {string} [opts.mode] - The mode for this filter to operate in. Default is `clip`.
+     * * `clip` - Note velocity will be clipped to the value of `opts.min` or `opts.max` if the velocity is out of range.
+     * * `drop` - Drop the note if velocity does not fall within the range of `opts.min` and `opts.max`.
+     * * `scaled` - Note velocity will be scaled relative to the values of `opts.min` and `opts.max`.
+     */
+    constructor({min = Velocity.min, max = Velocity.max, mode = 'clip'} = {}) {
+        super();
+        this._min = tools.clipToRange(min, Velocity.min, Velocity.max);
+        this._max = tools.clipToRange(max, this._min, Velocity.max);
+        this.mode = mode;
+    }
+
+    set mode(mode) {
+        switch (mode) {
+            case 'scaled':
+                let scale = (this._max - this._min + 1) / 128;
+                this._processor = (velocity) => {
+                    return Math.round(velocity * scale) + this._min;
+                };
+                break;
+            case 'drop':
+                this._processor = (velocity) => {
+                    return (tools.withinRange(velocity, this._min, this._max)) ? velocity : false;
+                };
+                break;
+            case 'clip':
+            default:
+                this._processor = (velocity) => {
+                    return tools.clipToRange(message.velocity, this._min, this._max);
+                }
+        }
+    }
+
+    process(message) {
+        if (!message.hasOwnProperty('velocity')) {
+            return message;
+        }
+        let processed = this._processor(message.velocity);
+        if (processed === false) {
+            return false;
+        }
+        message.velocity = processed;
+        return message;
+    }
+}
+
+module.exports = { Filter, ChannelFilter, VelocityFilter };

@@ -102,11 +102,15 @@ module.exports = {
         }
     },
 
-    withinRange(value, min, max) {
+    clipToRange(value, min, max) {
         if (min > max) {
             max = [min, min = max][0];
         }
-        return value >= min && value <= max;
+        return (value < min) ? min : (value > max) ? max : value;
+    },
+
+    withinRange(value, min, max) {
+        return this.clipToRange(value, min, max) === value;
     },
 
     forEach(data, callback) {
