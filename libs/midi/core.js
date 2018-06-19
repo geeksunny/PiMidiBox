@@ -93,6 +93,10 @@ class Message {
         }
     }
 
+    copy() {
+        return new Message([... this._bytes], Object.assign({}, this._additionalProperties));
+    }
+
     _updateProperties(type) {
         if (this._lastType === type) {
             return;

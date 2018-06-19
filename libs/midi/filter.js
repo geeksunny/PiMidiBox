@@ -85,6 +85,76 @@ class ChannelFilter extends Filter {
     }
 }
 
+const Chord = {
+    "MAJOR3": [0, 4, 7],    // Major, 3 notes
+    "MINOR3": [0, 3, 7],    // Minor, 3 notes
+    "MAJOR3_LO": [-5, 0, 4],
+    "MINOR3_LO": [-5, 0, 3],
+    "MAJOR2": [0, 4],       // Major, 2 notes
+    "MINOR2": [0, 3],       // Minor, 2 notes
+    "DIM": [0, 3, 6, 9],
+    "AUG": [0, 4, 8, 10],
+    "SUS2": [0, 2, 7],
+    "SUS4": [0, 5, 7],
+    "7SUS2": [0, 2, 7, 10],
+    "7SUS4": [0, 5, 7, 10],
+    "6TH": [0, 4, 7, 9],
+    "7TH": [0, 4, 7, 10],
+    "9TH": [0, 4, 7, 10, 14],
+    "MAJOR7TH": [0, 4, 7, 11],
+    "MAJOR9TH": [0, 4, 7, 11, 14],
+    "MAJOR11TH": [0, 4, 7, 14, 17],
+    "MINOR6TH": [0, 3, 7, 9],
+    "MINOR7TH": [0, 3, 7, 10],
+    "MINOR9TH": [0, 3, 7, 10, 14],
+    "MINOR11TH": [0, 3, 7, 14, 17],
+    "POWER2": [0, 7],
+    "POWER3": [0, 7, 12],
+    "OCTAVE2": [0, 12],
+    "OCTAVE3": [0, 12, 24]
+};
+
+class ChordFilter extends Filter {
+    /**
+     * // TODO: desc
+     * @param {Object} opts - An object containing one or more of the parameters listed below.
+     * @param {string} opts.chord - The chord to filter notes into.
+     * Valid Values:
+     *  MAJOR2, MAJOR3, MAJOR3_LO, MAJOR7TH, MAJOR9TH, MAJOR11TH,
+     *  MINOR2, MINOR3, MINOR3_LO, MINOR6TH, MINOR7TH, MINOR9TH, MINOR11TH,
+     *  DIM, AUG, SUS2, SUS4, 7SUS2, 7SUS4, 6TH, 7TH, 9TH,
+     *  POWER2, POWER3, OCTAVE2, OCTAVE3
+     */
+    constructor({chord} = {}) {
+        super();
+        if (!chord) {
+            throw "Value required for `chord`.";
+        }
+        this.chord = chord;
+    }
+
+    set chord(chord) {
+        if (!Chord[chord]) {
+            throw "Unsupported value for `chord`.";
+        }
+        this._offsets = Chord[chord];
+    }
+
+    process(message) {
+        let result = [];
+        for (let offset of this._offsets) {
+            let note = message.note += offset;
+            if (!tools.withinRange(note, 0, 127)) {
+                continue;
+            }
+            let add = message.copy();
+            add.note = note;
+            result.push(add);
+        }
+        return result;
+    }
+}
+
 const Velocity = {
     min: 0,
     max: 127 /*, mode: tools.enum('CLIP', 'DROP', 'SCALED')*/
@@ -144,4 +214,4 @@ class VelocityFilter extends Filter {
     }
 }
 
-module.exports = { Filter, ChannelFilter, VelocityFilter };
+module.exports = { Filter, ChannelFilter, ChordFilter, VelocityFilter };

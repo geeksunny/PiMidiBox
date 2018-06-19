@@ -36,6 +36,10 @@
       "channels": {
         "blacklist": [3, 4, 5, 6]
       },
+      "velocity": {
+        "min": 64,
+        "type": "scaled"
+      },
       "listen": {
         "clock": true,
         "sysex": false,
@@ -52,6 +56,12 @@
       "channels": {
         "whitelist": [3, 4],
         "map": {"3":1, "4":2}
+      },
+      "velocity": {
+        "min": 127
+      },
+      "chord": {
+        "chord": "MAJOR3"
       }
     },
     "Only.Monostation": {
@@ -64,6 +74,9 @@
       "channels": {
         "whitelist": [5, 6],
         "map": {"5":1, "6":2}
+      },
+      "velocity": {
+        "min": 127
       }
     }
   },

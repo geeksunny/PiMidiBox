@@ -123,7 +123,6 @@ class Mapping {
     }
 }
 
-// TODO: Add listen-* options
 class Router {
     constructor() {
         this._mappings = {};
@@ -131,8 +130,7 @@ class Router {
     }
 
     // TODO: Clock master / relay
-    // TODO: Add chord filter
-    // TODO: Add velocity regulation filter
+    // TODO: Add MIDI-CC mapping to alter filters on-the-fly (ie cycling chords in chord filter)
     // TODO: Add enable/disable feature for temporarily stopping all routing.
 
     /**
@@ -180,10 +178,16 @@ class Router {
             let inputs = midi.Core.openInputs(mapCfg.listen, ... getPortRecords(config.devices, mapCfg.inputs));
             let outputs = midi.Core.openOutputs(... getPortRecords(config.devices, mapCfg.outputs));
             let filters = [];
-            if (mapCfg.channels) {
-                filters.push(new Filter.ChannelFilter(mapCfg.channels));
+            let review = [
+                {type: Filter.ChannelFilter, key: "channels"},
+                {type: Filter.VelocityFilter, key: "velocity"},
+                {type: Filter.ChordFilter, key: "chord"}
+            ];
+            for (let {type, key} of review) {
+                if (mapCfg[key]) {
+                    filters.push(new type(mapCfg[key]));
+                }
             }
-            // TODO: Iterate through remaining filters here when added.
             this.addMapping(mapName, inputs, outputs, filters, onMessage);
         }
         midi.Core.hotplug = config.options.hotplug;
