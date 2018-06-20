@@ -157,23 +157,17 @@ class Message {
                     this._bytes[2] = ((value & 0x3F80) >> 7);   // msb
                 });
                 break;
-            case 0xF0:  // sysex
-                addProp('body', () => { // formally 'bytes' but clashed with base-class
-                    return [... this._bytes];
-                }, (value) => {
-                    // TODO: set: bytes?? Add to base class and call here
-                });
-                break;
             case 0xF1:  // mtc
-                addProp('type', () => {
+                addProp('mtcType', () => {
                     return (this._bytes[1] >> 4) & 0x07;
                 }, (value) => {
-                    // TODO: set: mtc.type
+                    // TODO: Verify this!
+                    this._bytes[1] = (value << 4) + this.value;
                 });
                 addProp('value', () => {
                     return this._bytes[1] & 0x0F;
                 }, (value) => {
-                    // TODO: set: mtc.value
+                    this._bytes[1] = (this.mtcType << 4) + value;
                 });
                 break;
             case 0xF3:  // select
@@ -197,7 +191,19 @@ class Message {
         return [... this._bytes];
     }
 
-    // TODO: setter for changing out message bytes array directly?
+    set bytes(bytes) {
+        // TODO: Validate bytes contents?
+        if (bytes[0] == 0xF0) { // TODO: can we use === here?
+            if (bytes.length < 4 || bytes[bytes.length - 1] != 0xF7) {
+                throw "Sysex args must be an array starting with 0xF0 and ending with 0xF7";
+            }
+            this._bytes = [... bytes];
+            this._updateProperties(0xF0);
+        } else {
+            this._bytes = [bytes[0], bytes[1], bytes[2]];
+            this._updateProperties(this.type);
+        }
+    }
 
     get channel() {
         return (this.isTypeBasic)
