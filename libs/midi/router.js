@@ -127,11 +127,39 @@ class Router {
     constructor() {
         this._mappings = {};
         this._started = false;
+        this._paused = false;
     }
 
     // TODO: Clock master / relay
     // TODO: Add MIDI-CC mapping to alter filters on-the-fly (ie cycling chords in chord filter)
-    // TODO: Add enable/disable feature for temporarily stopping all routing.
+
+    pause() {
+        if (this._started && !this._paused) {
+            this._paused = true;
+        }
+    }
+
+    unpause() {
+        if (this._started && this._paused) {
+            this._paused = false;
+        }
+    }
+
+    toggle() {
+        if (this._started) {
+            this._paused = !this._paused;
+        }
+    }
+
+    stop() {
+        if (this._started) {
+            this._started = false;
+            this._paused = false;
+            for (let name in this._mappings) {
+                this.removeMapping(name);
+            }
+        }
+    }
 
     /**
      * Start the router with a json configuration file.
@@ -161,6 +189,9 @@ class Router {
         };
         let onMessage = (device, message, mapping) => {
             // console.log(`m: ${device.name} - outputs: ${mapping.outputs.length} || ${JSON.stringify(message)}`);
+            if (this._paused || !this._started) {
+                return;
+            }
             let processed = mapping.process(message);
             if (processed) {
                 for (let msg of processed) {

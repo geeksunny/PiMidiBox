@@ -29,6 +29,17 @@ class Drive {
     }
 
     // TODO: getters for useful drive identification information
+    get isReadOnly() {
+        return this._info.isReadOnly;
+    }
+
+    get isSystem() {
+        return this._info.isSystem;
+    }
+
+    get mountpoints() {
+        return this._info.mountpoints;
+    }
 
     unmount() {
         let tasks = [];
