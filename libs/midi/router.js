@@ -1,5 +1,7 @@
 const midi = require('./core');
 const Filter = require('./filter');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * onMessage callbacks handle incoming MIDI messages with regards to the mapping.
@@ -123,6 +125,9 @@ class Mapping {
     }
 }
 
+// TODO: Allow this to be configured within syncConfigToUsb object.
+const SYNCED_CONFIG_FILENAME = "pimidbox.config.json";
+
 class Router {
     constructor() {
         this._mappings = {};
@@ -132,6 +137,10 @@ class Router {
 
     // TODO: Clock master / relay
     // TODO: Add MIDI-CC mapping to alter filters on-the-fly (ie cycling chords in chord filter)
+
+    get config() {
+        // TODO: create json of current config ready to save to disk.
+    }
 
     pause() {
         if (this._started && !this._paused) {
@@ -167,6 +176,7 @@ class Router {
      * @returns {boolean} - True if the router was started successfully.
      */
     loadConfig(path) {
+        // TODO: Restructure config loading to allow for simple reloading
         if (this._started) {
             // TODO: Print warning?
             return false;
@@ -188,6 +198,7 @@ class Router {
             return result;
         };
         let onMessage = (device, message, mapping) => {
+            // TODO: Move this method into outer class for readability
             // console.log(`m: ${device.name} - outputs: ${mapping.outputs.length} || ${JSON.stringify(message)}`);
             if (this._paused || !this._started) {
                 return;
@@ -222,6 +233,41 @@ class Router {
             this.addMapping(mapName, inputs, outputs, filters, onMessage);
         }
         midi.Core.hotplug = config.options.hotplug;
+        if (config.options.syncConfigToUsb) {
+            this._usb = require('../usb');
+            this._usb.Monitor.watchDrives((event, drive) => {
+                if (event === this._usb.Event.REMOVE || drive.isSystem || drive.isReadOnly) {
+                    return;
+                }
+                // TODO: Add in option for whitelist/blacklist of drives to ignore.
+                for (let mountpoint of drive.mountpoints) {
+                    let syncedConfigPath = path.join(mountpoint, SYNCED_CONFIG_FILENAME);
+                    let fileExists = true;
+                    try {
+                        fs.accessSync(syncedConfigPath, fs.constants.R_OK | fs.constants.W_OK)
+                    } catch (err) {
+                        fileExists = false;
+                    }
+                    try {
+                        let fd = fs.openSync(syncedConfigPath, 'a+');
+                        let statsRemote = fs.statSync(syncedConfigPath);
+                        let statsLocal = fs.statSync(path);
+                        if (fileExists && statsRemote.mtimeMs > statsLocal.mtimeMs) {
+                            // TODO: Copy USB config to hard drive, reload config.
+                        } else {
+                            // TODO: Copy config file to USB drive.
+                            // TODO: Add "lastSynced" timestamp value into config file
+                        }
+                        break;  // If we've made it this far, that means the sync operation was successful.
+                    } catch (e) {
+                        console.log(`Error occurred during USB config sync operation.\n${err}`);
+                    }
+                }
+                drive.unmount().catch((reason) => {
+                    console.log(`Error unmounting USB drive!\n${reason}`);
+                });
+            })
+        }
         // TODO: Implement config.options.verbose [GLOBAL SCALE?]
         return true;
     }

@@ -82,6 +82,7 @@
   },
   "options": {
     "hotplug": true,
+    "syncConfigToUsb": true,
     "verbose": false
   }
 }
