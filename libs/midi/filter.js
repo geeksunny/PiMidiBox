@@ -7,7 +7,31 @@ const tools = require('../tools');
  */
 class Filter {
     constructor() {
-        //
+        this._paused = false;
+    }
+
+    pause() {
+        if (!this._paused) {
+            this._paused = true;
+        }
+    }
+
+    unpause() {
+        if (this._paused) {
+            this._paused = false;
+        }
+    }
+
+    toggle() {
+        this._paused = !this._paused;
+    }
+
+    get paused() {
+        return this._paused;
+    }
+
+    process(message) {
+        return (this._paused) ? message : this._process(message);
     }
 
     /**
@@ -16,7 +40,7 @@ class Filter {
      * @returns {Message|Message[]|boolean} The message or array of messages to be passed down the line.
      * Return `false` to cancel the message from being passed along.
      */
-    process(message) {
+    _process(message) {
         throw "Not implemented!";
     }
 }
@@ -63,7 +87,7 @@ class ChannelFilter extends Filter {
         this._map = map;
     }
 
-    process(message) {
+    _process(message) {
         let channel = message.channel + 1;
         if (!!this._whitelist.length) {
             if (!(channel in this._whitelist)) {
@@ -140,7 +164,7 @@ class ChordFilter extends Filter {
         this._offsets = Chord[chord];
     }
 
-    process(message) {
+    _process(message) {
         let result = [];
         for (let offset of this._offsets) {
             let note = message.note += offset;
@@ -201,7 +225,7 @@ class VelocityFilter extends Filter {
         }
     }
 
-    process(message) {
+    _process(message) {
         if (!message.hasOwnProperty('velocity')) {
             return message;
         }
