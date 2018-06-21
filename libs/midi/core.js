@@ -71,6 +71,8 @@ const stringToByteTypeMap = {
     }
 };
 
+const noteStrings = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
 class Message {
     static fromProperties(type, properties) {
         let message = new Message();
@@ -132,10 +134,22 @@ class Message {
             case 0x09:  // noteon
                 addProp('note', get(1), set(1));
                 addProp('velocity', get(2), set(2));
+                addProp('octave', () => {
+                    return Math.trunc((this.note / 12) - 1);
+                }, undefined);
+                addProp('noteString', () => {
+                    return `${noteStrings[this.note % 12]}${this.octave}`;
+                }, undefined);
                 break;
             case 0x0A:  // poly aftertouch
                 addProp('note', get(1), set(1));
                 addProp('pressure', get(2), set(2));
+                addProp('octave', () => {
+                    return Math.trunc((this.note / 12) - 1);
+                }, undefined);
+                addProp('noteString', () => {
+                    return `${noteStrings[this.note % 12]}${this.octave}`;
+                }, undefined);
                 break;
             case 0x0B:  // cc
                 addProp('controller', get(1), set(1));
