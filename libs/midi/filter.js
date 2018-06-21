@@ -179,6 +179,31 @@ class ChordFilter extends Filter {
     }
 }
 
+class TransposeFilter extends Filter {
+    /**
+     * // TODO: desc
+     * @param {Object} opts - An object containing one or more of the parameters listed below.
+     * @param {Number} opts.step - The number of octaves to transpose notes to.
+     */
+    constructor({step} = {}) {
+        super();
+        this.step = step;
+    }
+
+    set step(value) {
+        if (value > 10 || value < -10) {
+            throw "Value of `step` must be between -10/+10";
+        }
+        this._step = value;
+    }
+
+    _process(message) {
+        let scaled = message.note + (this._step * 12);
+        message.note = tools.clipToRange(scaled, 0, 127);
+        return message;
+    }
+}
+
 const Velocity = {
     min: 0,
     max: 127 /*, mode: tools.enum('CLIP', 'DROP', 'SCALED')*/
@@ -199,8 +224,8 @@ class VelocityFilter extends Filter {
      */
     constructor({min = Velocity.min, max = Velocity.max, mode = 'clip'} = {}) {
         super();
-        this._min = tools.clipToRange(min, Velocity.min, Velocity.max);
-        this._max = tools.clipToRange(max, this._min, Velocity.max);
+        this.min = min;
+        this.max = max;
         this.mode = mode;
     }
 
@@ -225,6 +250,14 @@ class VelocityFilter extends Filter {
         }
     }
 
+    set min(value) {
+        this._min = tools.clipToRange(value, Velocity.min, Velocity.max);
+    }
+
+    set max(value) {
+        this._max = tools.clipToRange(value, this._min, Velocity.max);
+    }
+
     _process(message) {
         if (!message.hasOwnProperty('velocity')) {
             return message;
@@ -238,4 +271,4 @@ class VelocityFilter extends Filter {
     }
 }
 
-module.exports = { Filter, ChannelFilter, ChordFilter, VelocityFilter };
+module.exports = { Filter, ChannelFilter, ChordFilter, TransposeFilter, VelocityFilter };
