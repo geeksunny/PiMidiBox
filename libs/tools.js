@@ -1,5 +1,39 @@
 module.exports = {
 
+    /**
+     * A more accurate version of setInterval's functionality. Uses `process.hrtime()`
+     * to account for clock drift.
+     * @param {Function} func - Callback to be executed upon each tick.
+     * @param {Number} delay - Interval delay in milliseconds.
+     * @param {boolean} [queued] - If true, the first tick won't execute until after the initial delay.
+     * Set to false to execute your callback immediately upon calling. Defaults to true.
+     * @param {... Object} [params]
+     * @returns {wrapper} - An object with a `.cancel()` function for stopping your interval.
+     */
+    accurateInterval(func, delay, queued = true, ... params) {
+        let time = () => {
+            let t = process.hrtime();
+            // return Math.round((t[0] * 1e3) + (t[1] * 1e-6));
+            return Math.round((t[0] * 1000) + (t[1] / 1000000));
+        };
+        let nextAt = time();
+        let wrapper = (... params) => {
+            nextAt += delay;
+            wrapper.timeout = setTimeout(wrapper, nextAt - time(), ... params);
+            func(... params);
+        };
+        wrapper.cancel = () => {
+            clearTimeout(wrapper.timeout);
+        };
+        if (queued) {
+            nextAt += delay;
+            wrapper.timeout = setTimeout(wrapper, nextAt - time(), ... params);
+        } else {
+            setImmediate(wrapper, ... params);
+        }
+        return wrapper;
+    },
+
     isEmpty(obj) {
         if (typeof obj === 'undefined' || obj === null) {
             return true;
