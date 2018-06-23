@@ -25,6 +25,16 @@ module.exports = {
         wrapper.cancel = () => {
             clearTimeout(wrapper.timeout);
         };
+        Object.defineProperty(wrapper, 'delay', {
+            get: () => {
+                return delay;
+            },
+            set: (value) => {
+                delay = value;
+            },
+            enumerable: false,
+            configurable: true
+        });
         if (queued) {
             nextAt += delay;
             wrapper.timeout = setTimeout(wrapper, nextAt - time(), ... params);
