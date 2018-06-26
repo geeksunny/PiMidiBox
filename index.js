@@ -41,8 +41,9 @@ if (argv.configure) {
     // Select inputs; checkboxes
     // Select outputs; checkboxes
     // Features? checkboxes OR sequential prompts?
+    process.exit();
 } else if (argv.list) {
-    let devices = require('./libs/midi/core').deviceMap;
+    let devices = require('./libs/midi/core').Core.deviceMap;
     for (let name in devices) {
         for (let port in devices[name]) {
             console.log(`${name}, ${port}`);
