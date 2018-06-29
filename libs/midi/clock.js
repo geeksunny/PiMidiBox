@@ -18,7 +18,7 @@ class Worker extends EventEmitter {
     }
 
     _setup() {
-        let ipc = IpcConfig.request('clock');   // TODO: move ipc into class object for use in other methods
+        let ipc = IpcConfig.request('clock');
         ipc.of.master.on('clock.config', this._config);
         ipc.of.master.on('clock.control', this._control);
         ipc.connectTo('master');

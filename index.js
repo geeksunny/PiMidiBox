@@ -50,18 +50,33 @@ if (argv.configure) {
         }
     }
     process.exit()
-} else {
-    const Router = require('./libs/midi/router');
-    const midiRouter = new Router.Router();
-    midiRouter.loadConfig(argv.config);
-    ['exit', 'SIGINT', 'SIGUSR1', 'SIGUSR2', 'uncaughtException', 'SIGTERM'].forEach((event) => {
-        process.on(event, (err) => {
-            console.log(`Exit event detected - ${event}`);
-            if (err) {
-                console.log(err);
-            }
-            midiRouter.onExit();
-        });
-    });
-    console.log('Ready.');
 }
+
+const Router = require('./libs/midi/router');
+const midiRouter = new Router.Router();
+midiRouter.loadConfig(argv.config);
+// Handle exit events.
+require('signal-exit')((code, signal) => {
+    console.log(`Exit event detected: ${signal} (${code})`);
+    midiRouter.onExit();
+});
+process.on('uncaughtException', (err) => {
+    console.log(`UncaughtException: ${err}`);
+    process.exit(1);
+});
+// Set up IPC server.
+const ipc = require('./config/ipc').request('master');
+ipc.serve(() => {
+    console.log('IPC server started!');
+    // TODO: stuff below should probably be in the Clock.Master
+    // ipc.server.on('clock.connect', (data, socket) => {
+    //     // todo: set up clock in router
+    // });
+    // ipc.server.on('clock.tick', (data, socket) => {
+    //     // todo: tick the clock
+    // });
+    // TODO: should we move the Router init into this callback? IF ipc.server.on is called before ipc.serve(), will that screw things up? TEST!!!
+});
+ipc.server.start();
+// Ready!
+console.log('Ready.');
