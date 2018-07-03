@@ -3,6 +3,15 @@ const ipc = require('../../config/ipc').request('clock');
 const sleep = require('sleep');
 
 /**
+ * Get the current value of `process.hrtime()` in nanoseconds.
+ * @returns {number}
+ */
+function now() {
+    let now = process.hrtime();
+    return (+now[0] * 1e9) + (+now[1]);
+}
+
+/**
  * Worker class for calculating ticks. Will only run if the master IPC server is running in another process.
  */
 class Worker extends EventEmitter {
@@ -10,6 +19,7 @@ class Worker extends EventEmitter {
         super();
         this._started = false;
         this._stopQueued = false;
+        this._nextAt = 0;
         this._config(opts);
         this.on('tick', this._tick);
         this._setup();
@@ -18,6 +28,9 @@ class Worker extends EventEmitter {
     _setup() {
         ipc.of.master.on('clock.config', this._config);
         ipc.of.master.on('clock.control', this._control);
+        ipc.of.master.on('destroy', () => {
+            this.emit('destroy');
+        });
         ipc.connectTo('master', () => {
             ipc.of.master.emit('clock.ready');
         });
@@ -35,6 +48,7 @@ class Worker extends EventEmitter {
                 if (!this._started) {
                     this._started = true;
                     ipc.of.master.emit('clock.state', {started: true});
+                    this._nextAt = now();
                     this.emit('tick');
                 }
                 break;
@@ -52,12 +66,27 @@ class Worker extends EventEmitter {
             this._stopQueued = false;
             this._started = false;
         } else if (this._started) {
-            // TODO: sleep loop here
-            ipc.of.master.emit('clock.tick');
-            this.emit('tick');
+            this._nextAt += this._tickLength;
+            let diff = this._nextAt - now();
+            if (diff > 0) {
+                sleep.nsleep(diff);
+                ipc.of.master.emit('clock.tick');
+                this.emit('tick');
+            } else {
+                ipc.of.master.emit('clock.error', {
+                    message: `Received invalid diff value (${diff}). Timeout expired before performing any thread sleep. Timing at this precision may not be achievable.`
+                });
+                ipc.of.master.emit('clock.state', {started: false});
+                this._stopQueued = false;
+                this._started = false;
+            }
         }
     }
 }
 
 // Create worker and wait for a command.
 const worker = new Worker();
+worker.on('destroy', () => {
+    console.log(`IPC connection received 'destroy' event! Closing.`);
+    process.exit();
+});

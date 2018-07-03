@@ -3,6 +3,13 @@ const cp = require('../childprocess');
 const ipc = require('../../config/ipc').request('master');
 const tools = require('../tools');
 
+// TODO: Add configuration option for microseconds over nanoseconds
+const MINUTE_IN_MICROSECONDS = 60 * 1e6;
+const MINUTE_IN_NANOSECONDS = 60 * 1e9;
+
+const BPM_MIN = 60;
+const BPM_MAX = 300;
+
 /**
  * Represents the current position on the clock.
  */
@@ -128,6 +135,9 @@ class Master extends EventEmitter {
             }
             this._started = started;
         });
+        ipc.server.on('clock.error', ({message}) => {
+            console.error(`Clock error occurred!\n${message}`);
+        });
     }
 
     _updateWorker() {
@@ -188,10 +198,17 @@ class Master extends EventEmitter {
     }
 
     set tempo(bpm) {
-        this._bpm = bpm;
-        this._tickLength = 60000 / (this._bpm * this._ppqn);
-        this._updateWorker();
-        this.emit('set', {bpm});
+        let _bpm = tools.clipToRange(bpm, BPM_MIN, BPM_MAX);
+        if (_bpm !== bpm) {
+            console.log(`Invalid BPM (${bpm}) - Clipping to ${_bpm}`);
+            bpm = _bpm;
+        }
+        if (this._bpm !== bpm) {
+            this._bpm = bpm;
+            this._tickLength = MINUTE_IN_NANOSECONDS / (this._bpm * this._ppqn);
+            this._updateWorker();
+            this.emit('set', {bpm});
+        }
     }
 
     get tempo() {
