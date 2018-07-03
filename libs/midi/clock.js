@@ -1,6 +1,7 @@
 const EventEmitter = require('eventemitter3');
 const cp = require('../childprocess');
 const ipc = require('../../config/ipc').request('master');
+const {Message} = require('./core');
 const tools = require('../tools');
 
 // TODO: Add configuration option for microseconds over nanoseconds
@@ -9,6 +10,13 @@ const MINUTE_IN_NANOSECONDS = 60 * 1e9;
 
 const BPM_MIN = 60;
 const BPM_MAX = 300;
+
+const MIDI_CLOCK = Message.fromProperties('clock').bytes;
+const MIDI_START = Message.fromProperties('start').bytes;
+const MIDI_STOP = Message.fromProperties('stop').bytes;
+const MIDI_CONT = Message.fromProperties('continue').bytes;
+
+// TODO: Add Song Pointer Position (SPP) message support
 
 /**
  * Represents the current position on the clock.
@@ -107,6 +115,7 @@ class Master extends EventEmitter {
         super();
         this._startQueued = false;
         this._started = false;
+        this._paused = false;
         this._socket = undefined;
         this._workerProcess = undefined;
         this._ticks = 0;
@@ -134,6 +143,16 @@ class Master extends EventEmitter {
                 return;
             }
             this._started = started;
+            if (this._paused) {
+                if (started) {
+                    this._paused = false;
+                    this.emit('unpause');
+                } else {
+                    this.emit('pause');
+                }
+            } else {
+                this.emit(started ? 'start' : 'stop');
+            }
         });
         ipc.server.on('clock.error', ({message}) => {
             console.error(`Clock error occurred!\n${message}`);
@@ -153,8 +172,8 @@ class Master extends EventEmitter {
     start() {
         if (this._socket) {
             if (!this._started) {
+                this._paused = false;
                 ipc.server.emit(this._socket, 'clock.control', {action: 'start'});
-                this.emit('start');
             }
             return;
         }
@@ -165,28 +184,25 @@ class Master extends EventEmitter {
     }
 
     stop() {
-        if (this._socket) {
-            if (this._started || this._ticks > 0) {
-                ipc.server.emit(this._socket, 'clock.control', {action: 'stop'});
-                this._pos = 0;
-                this._ticks = 0;
-                this.emit('stop');
-            }
+        if (this._socket && (this._started || this._ticks > 0)) {
+            this._paused = false;
+            ipc.server.emit(this._socket, 'clock.control', {action: 'stop'});
+            this._pos = 0;
+            this._ticks = 0;
         }
     }
 
     pause() {
-        // TODO: Should a _paused flag be used here?
-        if (this._socket) {
-            if (this._started) {
-                ipc.server.emit(this._socket, 'clock.control', {action: 'stop'});
-                this.emit('pause');
-            }
+        if (this._socket && (this._started && !this._paused)) {
+            this._paused = true;
+            ipc.server.emit(this._socket, 'clock.control', {action: 'stop'});
         }
     }
 
     unpause() {
-        // TODO
+        if (this._socket && (this._started && this._paused)) {
+            ipc.server.emit(this._socket, 'clock.control', {action: 'start'});
+        }
     }
 
     kill() {
@@ -194,7 +210,7 @@ class Master extends EventEmitter {
     }
 
     get ticking() {
-        return this._started;
+        return this._started && !this._paused;
     }
 
     set tempo(bpm) {
@@ -234,6 +250,10 @@ class Clock {
         this._outputs = [];
         this._clock = new Master({bpm, ppqn, patternLength});
         this._clock.on('tick', this._onTick);
+        this._clock.on('start', this._onStart);
+        this._clock.on('stop', this._onStopOnPause);
+        this._clock.on('pause', this._onStopOnPause);
+        this._clock.on('unpause', this._onUnpause);
     }
 
     set tempo(bpm) {
@@ -253,8 +273,25 @@ class Clock {
     }
 
     _onTick(tick, ticks) {
+        // TODO: check tick pattern position, move any queued outputs into _outputs if ready
+        this._send(MIDI_CLOCK);
+    }
+
+    _onStart() {
+        this._send(MIDI_START);
+    }
+
+    _onStopOnPause() {
+        this._send(MIDI_STOP);
+    }
+
+    _onUnpause() {
+        this._send(MIDI_CONT);
+    }
+
+    _send(bytes) {
         for (let output of this._outputs) {
-            // TODO: handle Tick here
+            output.sendMessage(bytes);
         }
     }
 
