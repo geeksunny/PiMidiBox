@@ -341,4 +341,4 @@ class Clock {
     }
 }
 
-module.exports = { Clock };
+module.exports = Clock;

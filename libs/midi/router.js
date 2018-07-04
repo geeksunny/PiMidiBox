@@ -1,4 +1,5 @@
 const midi = require('./core');
+const Clock = require('./clock');
 const Filter = require('./filter');
 const fs = require('fs');
 const path = require('path');
@@ -133,6 +134,7 @@ class Router {
         this._mappings = {};
         this._started = false;
         this._paused = false;
+        this._clock = undefined;
     }
 
     // TODO: Clock master / relay
@@ -231,6 +233,11 @@ class Router {
                 }
             }
             this.addMapping(mapName, inputs, outputs, filters, onMessage);
+        }
+        if (config.clock) {
+            this._clock = new Clock(config.clock);
+            let outputs = midi.Core.openOutputs(... getPortRecords(config.devices, config.clock.outputs));
+            this._clock.add(... outputs);
         }
         midi.Core.hotplug = config.options.hotplug;
         if (config.options.syncConfigToUsb) {

@@ -80,6 +80,14 @@
       }
     }
   },
+  "clock": {
+    "outputs": [
+      "Tbox2", "Tbox1", "Circuit", "Monostation"
+    ],
+    "bpm": 120,
+    "ppqn": 24,
+    "patternLength": 16
+  },
   "options": {
     "hotplug": true,
     "syncConfigToUsb": true,
