@@ -35,12 +35,8 @@ const argv = require('yargs')
 if (argv.configure) {
     // TODO: Execute configuration wizard.
     console.log('Configuration Wizard invoked.');
-    // Replace config?
-    // List devices; Checkboxes for nicknaming devices
-    // Input name for new mapping
-    // Select inputs; checkboxes
-    // Select outputs; checkboxes
-    // Features? checkboxes OR sequential prompts?
+    const wizard = require('./libs/wizard');
+    wizard(argv.config);
     process.exit();
 } else if (argv.list) {
     let devices = require('./libs/midi/core').Core.deviceMap;
