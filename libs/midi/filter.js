@@ -1,4 +1,5 @@
 const tools = require('../tools');
+const {Message} = require('./core');
 
 /**
  * Interface for filters processing received MIDI messages.
@@ -61,8 +62,8 @@ class ChannelFilter extends Filter {
      */
     constructor({whitelist = [], blacklist = [], map = {}} = {}) {
         super();
-        this._whitelist = ChannelFilter._makeList(... whitelist);
-        this._blacklist = ChannelFilter._makeList(... blacklist);
+        this._whitelist = whitelist;
+        this._blacklist = blacklist;
         this._map = map;
     }
 
@@ -179,6 +180,61 @@ class ChordFilter extends Filter {
     }
 }
 
+class MessageTypeFilter extends Filter {
+    /**
+     * // TODO: desc
+     * @param {Object} opts - An object containing one or more of the parameters listed below.
+     * If both a whitelist and blacklist is provided, the blacklist will be ignored.
+     * @param {Number[]|String[]} [whitelist] - An array of numbers or strings representing types of messages to allow through the filter.
+     * @param {Number[]|String[]} [blacklist] - An array of numbers or strings representing types of messages to not allow through the filter.
+     */
+    constructor({whitelist = [], blacklist = []} = {}) {
+        super();
+        this.whitelist = whitelist;
+        this.blacklist = blacklist;
+    }
+
+    static _makeList(... types) {
+        let result = [];
+        for (let type of types) {
+            switch (typeof type) {
+                case 'number':
+                    if (type in Message.bytetoStringTypeMap) {
+                        result.push(type);
+                    } // TODO: else, throw/warn?
+                    break;
+                case 'string':
+                    if (type in Message.stringToByteTypeMap.basic) {
+                        result.push(Message.stringToByteTypeMap.basic[type]);
+                    } else if (type in Message.stringToByteTypeMap.extended) {
+                        result.push(Message.stringToByteTypeMap.extended[type]);
+                    } // TODO: else, throw/warn?
+                    break;
+            }
+        }
+        return result;
+    }
+
+    set whitelist(items) {
+        this._whitelist = MessageFilter._makeList(... items);
+    }
+
+    set blacklist(items) {
+        this._blacklist = MessageFilter._makeList(... items);
+    }
+
+    _process(message) {
+        super._process(message);
+        if (!!this._whitelist.length) {
+            return (message.type in this._whitelist) ? message : false;
+        } else if (!!this._blacklist.length) {
+            return (message.type in this._blacklist) ? false : message;
+        } else {
+            return false;
+        }
+    }
+}
+
 class TransposeFilter extends Filter {
     /**
      * // TODO: desc
@@ -271,4 +327,4 @@ class VelocityFilter extends Filter {
     }
 }
 
-module.exports = { Filter, ChannelFilter, ChordFilter, TransposeFilter, VelocityFilter };
+module.exports = { Filter, ChannelFilter, ChordFilter, MessageFilter, TransposeFilter, VelocityFilter };
