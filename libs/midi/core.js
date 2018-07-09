@@ -83,6 +83,14 @@ class Message {
         return message;
     }
 
+    static get bytetoStringTypeMap() {
+        return byteToStringTypeMap;
+    }
+
+    static get stringToByteTypeMap() {
+        return stringToByteTypeMap;
+    }
+
     constructor(bytes = [0, 0, 0], additionalProperties = {}) {
         // TODO: validate the 3 byte values?
         this._bytes = [bytes[0], bytes[1], bytes[2]];
@@ -275,7 +283,6 @@ class Message {
         return props;
     }
 }
-
 
 class Device {
     constructor() {
@@ -636,10 +643,6 @@ class Core {
         }
     }
 }
-
-// class Monitor {
-//
-// }
 
 
 module.exports = { Core: new Core(), Message: Message };
