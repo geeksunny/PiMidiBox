@@ -1,3 +1,4 @@
+const fs = require('fs');
 const midi = require('midi');
 
 /**
@@ -83,6 +84,31 @@ class Message {
         return message;
     }
 
+    static fromSysexFile(filePath) {
+        const SYSEX_START = 0xF0;
+        const SYSEX_END = 0xF7;
+        let fileData = fs.readFileSync(filePath);
+        let started = false;
+        let result = [];
+        let bytes;
+        // Ignores non-sysex bytes.
+        for (let byte of fileData) {
+            if (!started) {
+                if (byte === SYSEX_START) {
+                    bytes = [byte];
+                    started = true;
+                }
+            } else {
+                bytes.push(byte);
+                if (byte === SYSEX_END) {
+                    result.push(new Message(bytes));
+                    started = false;
+                }
+            }
+        }
+        return result;
+    }
+
     static get bytetoStringTypeMap() {
         return byteToStringTypeMap;
     }
@@ -92,9 +118,8 @@ class Message {
     }
 
     constructor(bytes = [0, 0, 0], additionalProperties = {}) {
-        // TODO: validate the 3 byte values?
-        this._bytes = [bytes[0], bytes[1], bytes[2]];
         this._properties = [];
+        this.bytes = bytes;
         this._lastType = undefined;
         this._updateProperties(this.type);
         this._additionalProperties = {};
