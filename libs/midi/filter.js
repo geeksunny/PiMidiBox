@@ -327,4 +327,4 @@ class VelocityFilter extends Filter {
     }
 }
 
-module.exports = { Filter, ChannelFilter, ChordFilter, MessageFilter, TransposeFilter, VelocityFilter };
+module.exports = { Filter, ChannelFilter, ChordFilter, MessageTypeFilter, TransposeFilter, VelocityFilter };
