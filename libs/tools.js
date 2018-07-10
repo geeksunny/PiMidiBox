@@ -1,6 +1,15 @@
 module.exports = {
 
     /**
+     * Get the current value of `process.hrtime()` in nanoseconds.
+     * @returns {number}
+     */
+    now() {
+        let now = process.hrtime();
+        return (+now[0] * 1e9) + (+now[1]);
+    },
+
+    /**
      * A more accurate version of setInterval's functionality. Uses `process.hrtime()`
      * to account for clock drift.
      * @param {Function} func - Callback to be executed upon each tick.

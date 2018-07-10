@@ -1,15 +1,7 @@
 const EventEmitter = require('eventemitter3');
 const ipc = require('../../config/ipc').request('clock');
 const sleep = require('sleep');
-
-/**
- * Get the current value of `process.hrtime()` in nanoseconds.
- * @returns {number}
- */
-function now() {
-    let now = process.hrtime();
-    return (+now[0] * 1e9) + (+now[1]);
-}
+const {now} = require('../tools');
 
 /**
  * Worker class for calculating ticks. Will only run if the master IPC server is running in another process.
