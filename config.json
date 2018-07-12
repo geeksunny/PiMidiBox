@@ -86,7 +86,8 @@
     ],
     "bpm": 120,
     "ppqn": 24,
-    "patternLength": 16
+    "patternLength": 16,
+    "tapEnabled": true
   },
   "options": {
     "hotplug": true,

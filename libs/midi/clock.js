@@ -8,6 +8,8 @@ const tools = require('../tools');
 const MINUTE_IN_MICROSECONDS = 60 * 1e6;
 const MINUTE_IN_NANOSECONDS = 60 * 1e9;
 
+const TAP_TIMEOUT = 3 * 1e9;    // 3 seconds in nanoseconds
+
 const BPM_MIN = 60;
 const BPM_MAX = 300;
 
@@ -243,17 +245,30 @@ class Master extends EventEmitter {
 
 // TODO: figure out logic for sharing ticks/pulses with multiple ppqn. master:24ppqn,slave:2ppqn - this would work due to the easy even numbers... non-multiples wouldn't be able to share since this blocks the thread its on. non-multiples would require multiple threads spun up.
 class Clock {
-    constructor(bpm = 120, ppqn = 24, patternLength = 16) {
+    constructor({bpm = 120, ppqn = 24, patternLength = 16, tapEnabled = true} = {}) {
         // TODO: Add play queueing, play immediately features. Stop queueing as well? (fires at end of current pattern) If not queued, should a sequence position be sent to sync device sequencers?
         this._playing = false;
         this._paused = false;
         this._outputs = [];
+        this.tapEnabled = tapEnabled;
+        this._tapTimes = [];
         this._clock = new Master({bpm, ppqn, patternLength});
         this._clock.on('tick', this._onTick);
         this._clock.on('start', this._onStart);
         this._clock.on('stop', this._onStopOnPause);
         this._clock.on('pause', this._onStopOnPause);
         this._clock.on('unpause', this._onUnpause);
+    }
+
+    get tapEnabled() {
+        return this._tapEnabled;
+    }
+
+    set tapEnabled(enabled) {
+        if (typeof enabled !== 'boolean') {
+            throw "Value must be a boolean!";
+        }
+        this._tapEnabled = enabled;
     }
 
     set tempo(bpm) {
@@ -338,6 +353,35 @@ class Clock {
         }
         this._playing = false;
         this._paused = false;
+    }
+
+    tap() {
+        if (!this._tapEnabled) {
+            return;
+        }
+        this._tapTimes.push(tools.now());
+        while (this._tapTimes.length > 5) {
+            this._tapTimes.shift();
+        }
+        if (this._tapTimes.length >= 3) {
+            let sum = 0, num = 0;
+            // TODO: make sure the loop logic works. Alternatively, unshift new timeouts to front of the array and proceed forwards.
+            for (let i = this._tapTimes.length - 1; i > 0; i--) {
+                let newer = this._tapTimes[i];
+                let older = this._tapTimes[i - 1];
+                let diff = newer - older;
+                if (diff > TAP_TIMEOUT) {
+                    // Skipping value
+                    continue;
+                }
+                sum += diff;
+                num += 1;
+            }
+            if (num >= 3) {
+                let interval = sum / num;
+                this.tempo = Math.round(MINUTE_IN_NANOSECONDS / interval);
+            }
+        }
     }
 }
 
