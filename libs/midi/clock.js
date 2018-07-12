@@ -377,7 +377,7 @@ class Clock {
                 sum += diff;
                 num += 1;
             }
-            if (num >= 3) {
+            if (num >= 2) {
                 let interval = sum / num;
                 this.tempo = Math.round(MINUTE_IN_NANOSECONDS / interval);
             }
