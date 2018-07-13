@@ -72,6 +72,9 @@ const stringToByteTypeMap = {
     }
 };
 
+const SYSEX_START = 0xF0;
+const SYSEX_END = 0xF7;
+
 const noteStrings = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 class Message {
@@ -85,8 +88,6 @@ class Message {
     }
 
     static fromSysexFile(filePath) {
-        const SYSEX_START = 0xF0;
-        const SYSEX_END = 0xF7;
         let fileData = fs.readFileSync(filePath);
         let started = false;
         let result = [];
@@ -240,12 +241,12 @@ class Message {
 
     set bytes(bytes) {
         // TODO: Validate bytes contents?
-        if (bytes[0] == 0xF0) { // TODO: can we use === here?
-            if (bytes.length < 4 || bytes[bytes.length - 1] != 0xF7) {
+        if (bytes[0] == SYSEX_START) { // TODO: can we use === here?
+            if (bytes.length < 4 || bytes[bytes.length - 1] != SYSEX_END) {
                 throw "Sysex args must be an array starting with 0xF0 and ending with 0xF7";
             }
             this._bytes = [... bytes];
-            this._updateProperties(0xF0);
+            this._updateProperties(SYSEX_START);
         } else {
             this._bytes = [bytes[0], bytes[1], bytes[2]];
             this._updateProperties(this.type);
