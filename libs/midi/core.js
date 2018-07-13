@@ -241,8 +241,8 @@ class Message {
 
     set bytes(bytes) {
         // TODO: Validate bytes contents?
-        if (bytes[0] == SYSEX_START) { // TODO: can we use === here?
-            if (bytes.length < 4 || bytes[bytes.length - 1] != SYSEX_END) {
+        if (bytes[0] === SYSEX_START) {
+            if (bytes.length < 4 || bytes[bytes.length - 1] !== SYSEX_END) {
                 throw "Sysex args must be an array starting with 0xF0 and ending with 0xF7";
             }
             this._bytes = [... bytes];
@@ -446,7 +446,6 @@ class Device {
 }
 
 class Input extends Device {
-    // TODO: Subclass Input for ClockMasterInput?
     constructor() {
         super();
         this._listenSysex = false;
