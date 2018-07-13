@@ -1,5 +1,5 @@
 const tools = require('../tools');
-const {Message} = require('./core');
+const { Message } = require('./core');
 
 /**
  * Interface for filters processing received MIDI messages.

@@ -223,11 +223,11 @@ class Router {
             let outputs = midi.Core.openOutputs(... getPortRecords(config.devices, mapCfg.outputs));
             let filters = [];
             let review = [
-                {type: Filter.ChannelFilter, key: "channels"},
-                {type: Filter.VelocityFilter, key: "velocity"},
-                {type: Filter.ChordFilter, key: "chord"}
+                { type: Filter.ChannelFilter, key: "channels" },
+                { type: Filter.VelocityFilter, key: "velocity" },
+                { type: Filter.ChordFilter, key: "chord" }
             ];
-            for (let {type, key} of review) {
+            for (let { type, key } of review) {
                 if (mapCfg[key]) {
                     filters.push(new type(mapCfg[key]));
                 }

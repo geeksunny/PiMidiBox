@@ -1,7 +1,7 @@
 const EventEmitter = require('eventemitter3');
 const cp = require('../childprocess');
 const ipc = require('../../config/ipc').request('master');
-const {Message} = require('./core');
+const { Message } = require('./core');
 const tools = require('../tools');
 
 // TODO: Add configuration option for microseconds over nanoseconds
@@ -113,7 +113,7 @@ class Tick {
 class Master extends EventEmitter {
     // TODO: add logic for swing. (Is this even possible through midi clock signals?)
     // TODO: add 'wholenote', 'quarternote', etc events?
-    constructor({ppqn = 24, bpm = 120, patternLength = 16} = {}) {
+    constructor({ ppqn = 24, bpm = 120, patternLength = 16 } = {}) {
         super();
         this._startQueued = false;
         this._started = false;
@@ -139,7 +139,7 @@ class Master extends EventEmitter {
                 ticks: ++this._ticks
             });
         });
-        ipc.server.on('clock.state', ({started}) => {
+        ipc.server.on('clock.state', ({ started }) => {
             if (typeof started !== 'boolean') {
                 console.log(`Unsupported type passed for 'clock.state.started' (${typeof started}), requires boolean.`);
                 return;
@@ -156,14 +156,14 @@ class Master extends EventEmitter {
                 this.emit(started ? 'start' : 'stop');
             }
         });
-        ipc.server.on('clock.error', ({message}) => {
+        ipc.server.on('clock.error', ({ message }) => {
             console.error(`Clock error occurred!\n${message}`);
         });
     }
 
     _updateWorker() {
         if (this._socket) {
-            ipc.server.emit(this._socket, 'clock.config', {tickLength: this._tickLength});
+            ipc.server.emit(this._socket, 'clock.config', { tickLength: this._tickLength });
             if (this._startQueued) {
                 this._startQueued = false;
                 this.start();
@@ -175,7 +175,7 @@ class Master extends EventEmitter {
         if (this._socket) {
             if (!this._started) {
                 this._paused = false;
-                ipc.server.emit(this._socket, 'clock.control', {action: 'start'});
+                ipc.server.emit(this._socket, 'clock.control', { action: 'start' });
             }
             return;
         }
@@ -188,7 +188,7 @@ class Master extends EventEmitter {
     stop() {
         if (this._socket && (this._started || this._ticks > 0)) {
             this._paused = false;
-            ipc.server.emit(this._socket, 'clock.control', {action: 'stop'});
+            ipc.server.emit(this._socket, 'clock.control', { action: 'stop' });
             this._pos = 0;
             this._ticks = 0;
         }
@@ -197,13 +197,13 @@ class Master extends EventEmitter {
     pause() {
         if (this._socket && (this._started && !this._paused)) {
             this._paused = true;
-            ipc.server.emit(this._socket, 'clock.control', {action: 'stop'});
+            ipc.server.emit(this._socket, 'clock.control', { action: 'stop' });
         }
     }
 
     unpause() {
         if (this._socket && (this._started && this._paused)) {
-            ipc.server.emit(this._socket, 'clock.control', {action: 'start'});
+            ipc.server.emit(this._socket, 'clock.control', { action: 'start' });
         }
     }
 
@@ -225,7 +225,7 @@ class Master extends EventEmitter {
             this._bpm = bpm;
             this._tickLength = MINUTE_IN_NANOSECONDS / (this._bpm * this._ppqn);
             this._updateWorker();
-            this.emit('set', {bpm});
+            this.emit('set', { bpm });
         }
     }
 
@@ -235,7 +235,7 @@ class Master extends EventEmitter {
 
     set patternLength(quarterNotes) {
         this._patternLength = quarterNotes;
-        this.emit('set', {patternLength: quarterNotes});
+        this.emit('set', { patternLength: quarterNotes });
     }
 
     get patternLength() {
@@ -245,14 +245,14 @@ class Master extends EventEmitter {
 
 // TODO: figure out logic for sharing ticks/pulses with multiple ppqn. master:24ppqn,slave:2ppqn - this would work due to the easy even numbers... non-multiples wouldn't be able to share since this blocks the thread its on. non-multiples would require multiple threads spun up.
 class Clock {
-    constructor({bpm = 120, ppqn = 24, patternLength = 16, tapEnabled = true} = {}) {
+    constructor({ bpm = 120, ppqn = 24, patternLength = 16, tapEnabled = true } = {}) {
         // TODO: Add play queueing, play immediately features. Stop queueing as well? (fires at end of current pattern) If not queued, should a sequence position be sent to sync device sequencers?
         this._playing = false;
         this._paused = false;
         this._outputs = [];
         this.tapEnabled = tapEnabled;
         this._tapTimes = [];
-        this._clock = new Master({bpm, ppqn, patternLength});
+        this._clock = new Master({ bpm, ppqn, patternLength });
         this._clock.on('tick', this._onTick);
         this._clock.on('start', this._onStart);
         this._clock.on('stop', this._onStopOnPause);
@@ -348,7 +348,7 @@ class Clock {
         if (!this._playing) {
             return;
         }
-        for (let {clock} of this._clocks) {
+        for (let { clock } of this._clocks) {
             clock.stop();
         }
         this._playing = false;

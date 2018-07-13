@@ -47,9 +47,9 @@ class Drive {
             tasks.push(new Promise((resolve, reject) => {
                 mountutils.unmountDisk(mountPoint, (err) => {
                     if (err) {
-                        reject({name: mountPoint, success: false, error: err});
+                        reject({ name: mountPoint, success: false, error: err });
                     }
-                    resolve({name: mountPoint, success: true});
+                    resolve({ name: mountPoint, success: true });
                 });
             }));
         }
@@ -143,14 +143,14 @@ class UsbMonitor {
                             reject(err_);
                         }
                         let pool = (event === Event.ADD)
-                            ? {from: drives_, to: drives}
-                            : {from: drives, to: drives_};
+                            ? { from: drives_, to: drives }
+                            : { from: drives, to: drives_ };
                         for (let device in pool.from) {
                             if (!(device in pool.to)) {
-                                resolve({result: true, drive: pool.from[device]});
+                                resolve({ result: true, drive: pool.from[device] });
                             }
                         }
-                        resolve({result: false});
+                        resolve({ result: false });
                     });
                 }, this._driveTimeout);
             })
@@ -208,4 +208,4 @@ class UsbMonitor {
     }
 }
 
-module.exports = {Drive: Drive, Device: UsbDevice, Event: Event, Monitor: new UsbMonitor()};
+module.exports = { Drive: Drive, Device: UsbDevice, Event: Event, Monitor: new UsbMonitor() };

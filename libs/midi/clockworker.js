@@ -1,7 +1,7 @@
 const EventEmitter = require('eventemitter3');
 const ipc = require('../../config/ipc').request('clock');
 const sleep = require('sleep');
-const {now} = require('../tools');
+const { now } = require('../tools');
 
 /**
  * Worker class for calculating ticks. Will only run if the master IPC server is running in another process.
@@ -28,18 +28,18 @@ class Worker extends EventEmitter {
         });
     }
 
-    _config({tickLength} = {}) {
+    _config({ tickLength } = {}) {
         if (tickLength) {
             this._tickLength = tickLength;
         }
     }
 
-    _control({action} = {}) {
+    _control({ action } = {}) {
         switch (action) {
             case 'start':
                 if (!this._started) {
                     this._started = true;
-                    ipc.of.master.emit('clock.state', {started: true});
+                    ipc.of.master.emit('clock.state', { started: true });
                     this._nextAt = now();
                     this.emit('tick');
                 }
@@ -54,7 +54,7 @@ class Worker extends EventEmitter {
 
     _tick() {
         if (this._stopQueued) {
-            ipc.of.master.emit('clock.state', {started: false});
+            ipc.of.master.emit('clock.state', { started: false });
             this._stopQueued = false;
             this._started = false;
         } else if (this._started) {
@@ -68,7 +68,7 @@ class Worker extends EventEmitter {
                 ipc.of.master.emit('clock.error', {
                     message: `Received invalid diff value (${diff}). Timeout expired before performing any thread sleep. Timing at this precision may not be achievable.`
                 });
-                ipc.of.master.emit('clock.state', {started: false});
+                ipc.of.master.emit('clock.state', { started: false });
                 this._stopQueued = false;
                 this._started = false;
             }

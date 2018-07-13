@@ -12,7 +12,7 @@ const midi = require('midi');
 
 const PortRecord = {
     create: (name, port) => {
-        return {name, "port": parseInt(port), "nickname": undefined};
+        return { name, port: parseInt(port), nickname: undefined };
     },
     parse: (deviceName) => {
         if (!deviceName) {
@@ -20,7 +20,7 @@ const PortRecord = {
             return;
         }
         let match = /^([\w\W]+)\s\d+\:(\d+)$/g.exec(deviceName);
-        return {name: match[1], port: parseInt(match[2]), nickname: undefined};
+        return { name: match[1], port: parseInt(match[2]), nickname: undefined };
     }
 };
 
@@ -482,7 +482,7 @@ class Input extends Device {
     bind(onMessage) {
         if (this._device) {
             this._device.on('message', (deltaTime, msg) => {
-                onMessage(this, new Message(msg, {deltaTime}));
+                onMessage(this, new Message(msg, { deltaTime }));
             });
         }
     }
