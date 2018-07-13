@@ -567,10 +567,7 @@ class Output extends Device {
 }
 
 class Core {
-    // TODO: Make into singleton using module.exports = new Core();
     // TODO: Core class can handle the switch-off between node-midi and node-midi-jack if added.
-    // TODO: Core needs to maintain the pool of MIDI I/O objects. Close and re-use I/O as needed. Too many instantiations [new midi.input();] can cause a crash/memory leak (ALSA will crash.)
-
     constructor() {
         this._inputs = {};
         this._outputs = {};
@@ -616,6 +613,15 @@ class Core {
     }
 
     // noinspection JSMethodCanBeStatic
+    _setListenFlags(listenFlags, ... inputs) {
+        for (let input of inputs) {
+            input.listenSysex = listenFlags.sysex;
+            input.listenClock = listenFlags.clock;
+            input.listenActiveSense = listenFlags.activeSense;
+        }
+    }
+
+    // noinspection JSMethodCanBeStatic
     _open(type, registry, ... ports) {
         let opened = [];
         for (let port of ports) {
@@ -636,11 +642,7 @@ class Core {
     openInputs(listenFlags, ... ports) {
         let inputs = this._open(Input, this._inputs, ... ports);
         if (listenFlags) {
-            for (let input of inputs) {
-                input.listenSysex = listenFlags.sysex;
-                input.listenClock = listenFlags.clock;
-                input.listenActiveSense = listenFlags.activeSense;
-            }
+            this._setListenFlags(listenFlags, ... inputs);
         }
         return inputs;
     }
@@ -649,6 +651,36 @@ class Core {
         return this._open(Output, this._outputs, ... ports);
     }
 
+    _openAll(type, registry) {
+        let map = this.deviceMap;
+        let result = [];
+        for (let name in map) {
+            if (registry[name]) {
+                result.push(... registry[name]);
+            } else {
+                for (let devicePort in map[name]) {
+                    let portRecord = PortRecord.create(name, devicePort);
+                    let opened = this._open(type, registry, portRecord);
+                    result.push(... opened);
+                }
+            }
+        }
+        return result;
+    }
+
+    openAllInputs(listenFlags) {
+        let inputs = this._openAll(Input, this._inputs);
+        if (listenFlags) {
+            this._setListenFlags(listenFlags, ... inputs);
+        }
+        return inputs;
+    }
+
+    openAllOutputs() {
+        return this._openAll(Output, this._outputs);
+    }
+
+    // noinspection JSMethodCanBeStatic
     get deviceMap() {
         let input = new Input();
         let map = input.portMap;
