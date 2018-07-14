@@ -230,7 +230,7 @@ class MessageTypeFilter extends Filter {
         } else if (!!this._blacklist.length) {
             return (message.type in this._blacklist) ? false : message;
         } else {
-            return false;
+            return message;
         }
     }
 }
