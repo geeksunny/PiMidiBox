@@ -13,6 +13,182 @@ const path = require('path');
  * @param {Mapping} mapping - A reference to the mapping object issuing the message.
  */
 
+
+/**
+ * Base class for managing configuration records.
+ */
+class ConfigRecord {
+    constructor() {
+        // todo: is there anything that needs to be done here?
+        if (new.target === ConfigRecord) {
+            throw new TypeError("ConfigRecord is an abstract class and cannot be instantiated directly.");
+        }
+        this._reset();
+    }
+
+    _reset() {
+        throw "Not implemented!";
+    }
+
+    _fromJson(json) {
+        throw "Not implemented!";
+    }
+
+    fromJson(json) {
+        this._reset();
+        return this._fromJson(json);
+    }
+
+    _toJson(json) {
+        throw "Not implemented!";
+    }
+
+    toJson(json) {
+        // TODO: Is there anything required here?
+        return this._toJson(json);
+    }
+
+    _fromRouter(router) {
+        throw "Not implemented!";
+    }
+
+    fromRouter(router) {
+        this._reset();
+        return this._fromRouter(router);
+    }
+
+    _toRouter(router) {
+        throw "Not implemented!";
+    }
+
+    toRouter(router) {
+        // TODO: Is there anything required here?
+        return this._toRouter(router);
+    }
+}
+
+/**
+ * TODO
+ */
+class DeviceRecord extends ConfigRecord {
+    constructor() {
+        super();
+    }
+
+    _reset() {
+        //
+    }
+
+    _fromJson(json) {
+        //
+    }
+}
+
+/**
+ * TODO
+ */
+class ClockRecord extends ConfigRecord {
+    constructor() {
+        super();
+    }
+
+    _reset() {
+        //
+    }
+
+    _fromJson(json) {
+        //
+    }
+}
+
+/**
+ * TODO
+ */
+class OptionsRecord extends ConfigRecord {
+    constructor() {
+        super();
+    }
+
+    _reset() {
+        //
+    }
+
+    _fromJson(json) {
+        //
+    }
+}
+
+/**
+ * Class for managing the record of a Mapping configuration.
+ */
+class MappingRecord extends ConfigRecord {
+    constructor({ inputs = [], outputs = [], channels, velocity, listen } = {}) {
+        super();
+        // todo
+    }
+
+    _reset() {
+        this._inputs = [];
+        this._outputs = [];
+        this._channels = {};
+        this._velocity = {};
+        this._listen = {};
+    }
+
+    _fromJson(json) {
+        //
+    }
+}
+
+/**
+ * Class for managing the contents of the Router's configuration.
+ */
+class Configuration extends ConfigRecord {
+    static fromFile(filePath) {
+        // todo
+    }
+
+    _reset() {
+        this._devices = {};
+        this._mappings = {};
+        this._clock = new ClockRecord();
+        this._options = new OptionsRecord();
+    }
+
+    _fromJson(json) {
+        if (json.devices) {
+            for (let name in json.devices) {
+                let device = json.devices[name];
+                // todo
+            }
+        }
+        if (json.mappings) {
+            for (let name in json.mappings) {
+                let mapping = json.mappings[name];
+                // todo
+            }
+        }
+        if (json.clock) {
+            // todo
+        }
+        if (json.options) {
+            // todo
+        }
+    }
+
+    _toJson(json) {
+        super._toJson(json);
+    }
+
+    _fromRouter(router) {
+        super._fromRouter(router);
+    }
+
+    _toRouter(router) {
+        super._toRouter(router);
+    }
+}
+
 /**
  * Class to facilitate the mapping of MIDI messages from multiple inputs to multiple outputs.
  */
@@ -136,9 +312,6 @@ class Router {
         this._paused = false;
         this._clock = undefined;
     }
-
-    // TODO: Clock master / relay
-    // TODO: Add MIDI-CC mapping to alter filters on-the-fly (ie cycling chords in chord filter)
 
     get config() {
         // TODO: create json of current config ready to save to disk.
