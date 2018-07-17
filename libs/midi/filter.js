@@ -44,6 +44,13 @@ class Filter {
     _process(message) {
         throw "Not implemented!";
     }
+
+    /**
+     * Returns an object representing the current settings of the filter.
+     */
+    get settings() {
+        throw "Not implemented!";
+    }
 }
 
 class ChannelFilter extends Filter {
@@ -108,6 +115,20 @@ class ChannelFilter extends Filter {
         }
         return message;
     }
+
+    get settings() {
+        let settings = {};
+        if (!!this._whitelist.length) {
+            settings.whitelist = this._whitelist;
+        }
+        if (!!this._blacklist.length) {
+            settings.blacklist = this._blacklist;
+        }
+        if (!!Object.keys(this._map).length) {
+            settings.map = this._map;
+        }
+        return settings;
+    }
 }
 
 const Chord = {
@@ -162,6 +183,7 @@ class ChordFilter extends Filter {
         if (!Chord[chord]) {
             throw "Unsupported value for `chord`.";
         }
+        this._chord = chord;
         this._offsets = Chord[chord];
     }
 
@@ -177,6 +199,12 @@ class ChordFilter extends Filter {
             result.push(add);
         }
         return result;
+    }
+
+    get settings() {
+        return {
+            chord: this._chord
+        };
     }
 }
 
@@ -233,6 +261,17 @@ class MessageTypeFilter extends Filter {
             return message;
         }
     }
+
+    get settings() {
+        let settings = {};
+        if (!!this._whitelist.length) {
+            settings.whitelist = this._whitelist;
+        }
+        if (!!this._blacklist.length) {
+            settings.blacklist = this._blacklist;
+        }
+        return settings;
+    }
 }
 
 class TransposeFilter extends Filter {
@@ -257,6 +296,12 @@ class TransposeFilter extends Filter {
         let scaled = message.note + (this._step * 12);
         message.note = tools.clipToRange(scaled, 0, 127);
         return message;
+    }
+
+    get settings() {
+        return {
+            step: this._step
+        };
     }
 }
 
@@ -286,6 +331,7 @@ class VelocityFilter extends Filter {
     }
 
     set mode(mode) {
+        this._mode = mode;
         switch (mode) {
             case 'scaled':
                 let scale = (this._max - this._min + 1) / 128;
@@ -324,6 +370,14 @@ class VelocityFilter extends Filter {
         }
         message.velocity = processed;
         return message;
+    }
+
+    get settings() {
+        return {
+            min: this._min,
+            max: this._max,
+            mode: this._mode
+        };
     }
 }
 
