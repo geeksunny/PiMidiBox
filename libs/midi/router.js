@@ -71,15 +71,24 @@ class ConfigRecord {
  * TODO
  */
 class DeviceRecord extends ConfigRecord {
-    constructor() {
-        super();
-    }
-
     _reset() {
-        //
+        this._name = undefined;
+        this._port = undefined;
     }
 
     _fromJson(json) {
+        //
+    }
+
+    _toJson(json) {
+        //
+    }
+
+    _fromRouter(router) {
+        //
+    }
+
+    _toRouter(router) {
         //
     }
 }
@@ -88,15 +97,27 @@ class DeviceRecord extends ConfigRecord {
  * TODO
  */
 class ClockRecord extends ConfigRecord {
-    constructor() {
-        super();
-    }
-
     _reset() {
-        //
+        this._outputs = [];
+        this._bpm = 120;
+        this._ppqn = 24;
+        this._patternLength = 16;
+        this._tapEnabled = false;
     }
 
     _fromJson(json) {
+        //
+    }
+
+    _toJson(json) {
+        //
+    }
+
+    _fromRouter(router) {
+        //
+    }
+
+    _toRouter(router) {
         //
     }
 }
@@ -105,15 +126,25 @@ class ClockRecord extends ConfigRecord {
  * TODO
  */
 class OptionsRecord extends ConfigRecord {
-    constructor() {
-        super();
-    }
-
     _reset() {
-        //
+        this._hotplug = true;
+        this._syncConfigToUsb = true;
+        this._verbose = false;
     }
 
     _fromJson(json) {
+        //
+    }
+
+    _toJson(json) {
+        //
+    }
+
+    _fromRouter(router) {
+        //
+    }
+
+    _toRouter(router) {
         //
     }
 }
@@ -122,11 +153,6 @@ class OptionsRecord extends ConfigRecord {
  * Class for managing the record of a Mapping configuration.
  */
 class MappingRecord extends ConfigRecord {
-    constructor({ inputs = [], outputs = [], channels, velocity, listen } = {}) {
-        super();
-        // todo
-    }
-
     _reset() {
         this._inputs = [];
         this._outputs = [];
@@ -136,6 +162,18 @@ class MappingRecord extends ConfigRecord {
     }
 
     _fromJson(json) {
+        //
+    }
+
+    _toJson(json) {
+        //
+    }
+
+    _fromRouter(router) {
+        //
+    }
+
+    _toRouter(router) {
         //
     }
 }
@@ -177,15 +215,15 @@ class Configuration extends ConfigRecord {
     }
 
     _toJson(json) {
-        super._toJson(json);
+        //
     }
 
     _fromRouter(router) {
-        super._fromRouter(router);
+        //
     }
 
     _toRouter(router) {
-        super._toRouter(router);
+        //
     }
 }
 
@@ -221,6 +259,14 @@ class Mapping {
      */
     get outputs() {
         return [... this._outputs];
+    }
+
+    /**
+     * Get an array of the mapping's filters.
+     * @returns {Filter[]}
+     */
+    get filters() {
+        return [... this._filters];
     }
 
     addFilters(... filters) {
