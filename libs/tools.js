@@ -56,8 +56,8 @@ module.exports = {
     isEmpty(obj) {
         if (typeof obj === 'undefined' || obj === null) {
             return true;
-        } else if (obj instanceof Array) {
-            let empty = obj.length === 0;
+        } else if (Array.isArray(obj)) {
+            let empty = !obj.length;
             if (!empty) {
                 for (let i = 0; i < obj.length; i++) {
                     empty = this.isEmpty(obj[i]);
@@ -68,7 +68,9 @@ module.exports = {
             }
             return empty;
         } else if (typeof obj === 'string') {
-            return obj.length === 0;
+            return !obj.length;
+        } else if (typeof obj === 'object') {
+            return !Object.keys(obj).length;
         } else {
             return false;
         }
