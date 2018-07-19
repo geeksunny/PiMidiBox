@@ -1,3 +1,4 @@
+const logger = require('log4js').getLogger();
 const onExit = require('signal-exit');
 const { fork } = require('child_process');
 
@@ -31,10 +32,10 @@ const _fork = (label, filePath, args, options) => {
     // TODO: make stdout/stderr printing optional
     let forked = fork(filePath, args, options);
     forked.stdout.on('data', (data) => {
-        console.log(`[${label}:out] ${data}`);
+        logger.log(`[${label}:out] ${data}`);
     });
     forked.stderr.on('data', (data) => {
-        console.error(`[${label}:err] ${data}`);
+        logger.error(`[${label}:err] ${data}`);
     });
     return new Wrapper(forked);
 };

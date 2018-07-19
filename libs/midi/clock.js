@@ -1,6 +1,7 @@
 const EventEmitter = require('eventemitter3');
 const cp = require('../childprocess');
 const ipc = require('../../config/ipc').request('master');
+const logger = require('log4js').getLogger();
 const { Message } = require('./core');
 const tools = require('../tools');
 
@@ -141,7 +142,7 @@ class Master extends EventEmitter {
         });
         ipc.server.on('clock.state', ({ started }) => {
             if (typeof started !== 'boolean') {
-                console.log(`Unsupported type passed for 'clock.state.started' (${typeof started}), requires boolean.`);
+                logger.error(`Unsupported type passed for 'clock.state.started' (${typeof started}), requires boolean.`);
                 return;
             }
             this._started = started;
@@ -157,7 +158,7 @@ class Master extends EventEmitter {
             }
         });
         ipc.server.on('clock.error', ({ message }) => {
-            console.error(`Clock error occurred!\n${message}`);
+            logger.error(`Clock error occurred!\n${message}`);
         });
     }
 
@@ -218,7 +219,7 @@ class Master extends EventEmitter {
     set tempo(bpm) {
         let _bpm = tools.clipToRange(bpm, BPM_MIN, BPM_MAX);
         if (_bpm !== bpm) {
-            console.log(`Invalid BPM (${bpm}) - Clipping to ${_bpm}`);
+            logger.warn(`Invalid BPM (${bpm}) - Clipping to ${_bpm}`);
             bpm = _bpm;
         }
         if (this._bpm !== bpm) {

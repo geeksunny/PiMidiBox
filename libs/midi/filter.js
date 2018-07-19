@@ -1,3 +1,4 @@
+const logger = require('log4js').getLogger();
 const tools = require('../tools');
 const { Message } = require('./core');
 
@@ -99,17 +100,17 @@ class ChannelFilter extends Filter {
         let channel = message.channel + 1;
         if (!!this._whitelist.length) {
             if (!(channel in this._whitelist)) {
-                console.log(`Channel is not whitelisted! ${channel}`);
+                logger.debug(`Channel is not whitelisted! ${channel}`);
                 return false;
             }
         } else if (!!this._blacklist.length) {
             if (channel in this._blacklist) {
-                console.log(`Blacklisted!! ${channel}`);
+                logger.debug(`Blacklisted!! ${channel}`);
                 return false;
             }
         }
         if (channel.toString() in this._map) {
-            console.log(`Remapped! ${channel}->${this._map[channel]}`);
+            logger.debug(`Remapped! ${channel}->${this._map[channel]}`);
             // TODO: Revisit when midi.Message has been rewritten
             message.channel = this._map[channel] - 1;
         }

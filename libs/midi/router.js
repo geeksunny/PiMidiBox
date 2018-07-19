@@ -1,3 +1,4 @@
+const logger = require('log4js').getLogger();
 const midi = require('./core');
 const Clock = require('./clock');
 const Filter = require('./filter');
@@ -497,7 +498,7 @@ class Router {
         };
         let onMessage = (device, message, mapping) => {
             // TODO: Move this method into outer class for readability
-            // console.log(`m: ${device.name} - outputs: ${mapping.outputs.length} || ${JSON.stringify(message)}`);
+            // logger.debug(`m: ${device.name} - outputs: ${mapping.outputs.length} || ${JSON.stringify(message)}`);
             if (this._paused || !this._started) {
                 return;
             }
@@ -563,11 +564,11 @@ class Router {
                         }
                         break;  // If we've made it this far, that means the sync operation was successful.
                     } catch (e) {
-                        console.log(`Error occurred during USB config sync operation.\n${err}`);
+                        logger.error(`Error occurred during USB config sync operation.\n${err}`);
                     }
                 }
                 drive.unmount().catch((reason) => {
-                    console.log(`Error unmounting USB drive!\n${reason}`);
+                    logger.error(`Error unmounting USB drive!\n${reason}`);
                 });
             })
         }

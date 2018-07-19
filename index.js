@@ -29,12 +29,20 @@ const argv = require('yargs')
         description: 'Maintain device connections after starting the router',
         type: 'boolean'
     })
+    .option('v', {
+        alias: 'verbose',
+        default: false,
+        description: 'More console output',
+        type: 'boolean'
+    })
     .argv;
 // TODO: Merge argument options with config file options - https://github.com/yargs/yargs/blob/HEAD/docs/api.md#config
+const logger = require('log4js').getLogger();
+logger.level = (argv.verbose) ? 'all' : 'warn'; // TODO: error instead of warn?
 
 if (argv.configure) {
     // TODO: Execute configuration wizard.
-    console.log('Configuration Wizard invoked.');
+    logger.log('Configuration Wizard invoked.');
     const wizard = require('./libs/wizard');
     wizard(argv.config);
     process.exit();
@@ -42,7 +50,7 @@ if (argv.configure) {
     let devices = require('./libs/midi/core').Core.deviceMap;
     for (let name in devices) {
         for (let port in devices[name]) {
-            console.log(`${name}, ${port}`);
+            logger.debug(`${name}, ${port}`);
         }
     }
     process.exit()
@@ -53,17 +61,17 @@ const midiRouter = new Router.Router();
 midiRouter.loadConfig(argv.config);
 // Handle exit events.
 require('signal-exit')((code, signal) => {
-    console.log(`Exit event detected: ${signal} (${code})`);
+    logger.log(`Exit event detected: ${signal} (${code})`);
     midiRouter.onExit();
 });
 process.on('uncaughtException', (err) => {
-    console.log(`UncaughtException: ${err}`);
+    logger.error(`UncaughtException: ${err}`);
     process.exit(1);
 });
 // Set up IPC server.
 const ipc = require('./config/ipc').request('master');
 ipc.serve(() => {
-    console.log('IPC server started!');
+    logger.log('IPC server started!');
     // TODO: stuff below should probably be in the Clock.Master
     // ipc.server.on('clock.connect', (data, socket) => {
     //     // todo: set up clock in router
@@ -75,4 +83,4 @@ ipc.serve(() => {
 });
 ipc.server.start();
 // Ready!
-console.log('Ready.');
+logger.log('Ready.');

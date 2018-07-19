@@ -1,4 +1,5 @@
 const fs = require('fs');
+const logger = require('log4js').getLogger();
 const midi = require('midi');
 const { MessageTypeFilter } = require('./filter');
 const usb = require('../usb');
@@ -579,6 +580,7 @@ class Output extends Device {
     }
 
     sendMessage(message) {
+        logger.debug(`sendMessage::${this.name}||isOpen::${this.isOpen}`);
         if (this.isOpen) {
             this._device.sendMessage(message);
         }
@@ -614,7 +616,7 @@ class Core {
             this._usb = require('../usb');
             this._usb.Monitor.watchDevices((event, device) => {
                 let processor = event === this._usb.Event.ADD ? add : remove;
-                console.log(`Hotplug : ${event.toString()} - ${device.name}`);
+                logger.debug(`Hotplug : ${event.toString()} - ${device.name}`);
                 let ins = this._inputs[device.name];
                 let outs = this._outputs[device.name];
                 for (let group of [ins, outs]) {
@@ -740,7 +742,7 @@ class Monitor {
         }
         if (!handler) {
             handler = (device, message) => {
-                console.log(`Device: ${device.name} | Message: ${message.typeString}, ${message.bytes}`);
+                logger.debug(`Device: ${device.name} | Message: ${message.typeString}, ${message.bytes}`);
             }
         }
         this.handler = handler;
