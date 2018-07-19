@@ -3,6 +3,7 @@ const Clock = require('./clock');
 const Filter = require('./filter');
 const fs = require('fs');
 const path = require('path');
+const tools = require('../tools');
 
 /**
  * onMessage callbacks handle incoming MIDI messages with regards to the mapping.
@@ -39,13 +40,13 @@ class ConfigRecord {
         return this._fromJson(json);
     }
 
-    _toJson(json) {
+    _toJson() {
         throw "Not implemented!";
     }
 
-    toJson(json) {
+    toJson() {
         // TODO: Is there anything required here?
-        return this._toJson(json);
+        return this._toJson();
     }
 
     _fromRouter(router) {
@@ -77,11 +78,15 @@ class DeviceRecord extends ConfigRecord {
     }
 
     _fromJson(json) {
-        //
+        this._name = json.name;
+        this._port = json.port;
     }
 
-    _toJson(json) {
-        //
+    _toJson() {
+        return {
+            name: this._name,
+            port: this._port
+        };
     }
 
     _fromRouter(router) {
@@ -106,11 +111,32 @@ class ClockRecord extends ConfigRecord {
     }
 
     _fromJson(json) {
-        //
+        if (!tools.isEmpty(json.outputs)) {
+            // TODO: Validate before add?
+            this._outputs.push(... json.outputs);
+        }
+        if (json.bpm) {
+            this._bpm = json.bpm;
+        }
+        if (json.ppqn) {
+            this._ppqn = json.ppqn;
+        }
+        if (json.patternLength) {
+            this._patternLength = json.patternLength;
+        }
+        if (json.tapEnabled) {
+            this._tapEnabled = json.tapEnabled;
+        }
     }
 
-    _toJson(json) {
-        //
+    _toJson() {
+        return {
+            outputs: this._outputs,
+            bpm: this._bpm,
+            ppqn: this._ppqn,
+            patternLength: this._patternLength,
+            tapEnabled: this._tapEnabled
+        };
     }
 
     _fromRouter(router) {
@@ -133,11 +159,23 @@ class OptionsRecord extends ConfigRecord {
     }
 
     _fromJson(json) {
-        //
+        if (json.hotplug) {
+            this._hotplug = json.hotplug;
+        }
+        if (json.syncConfigToUsb) {
+            this._syncConfigToUsb = json.syncConfigToUsb;
+        }
+        if (json.verbose) {
+            this._verbose = json.verbose;
+        }
     }
 
-    _toJson(json) {
-        //
+    _toJson() {
+        return {
+            hotplug: this._hotplug,
+            syncConfigToUsb: this._syncConfigToUsb,
+            verbose: this._verbose
+        };
     }
 
     _fromRouter(router) {
@@ -156,17 +194,46 @@ class MappingRecord extends ConfigRecord {
     _reset() {
         this._inputs = [];
         this._outputs = [];
-        this._channels = {};
-        this._velocity = {};
-        this._listen = {};
+        this._channels = undefined;
+        this._velocity = undefined;
+        this._listen = undefined;
     }
 
     _fromJson(json) {
-        //
+        if (!tools.isEmpty(json.inputs)) {
+            // TODO: Validate before add?
+            this._inputs.push(... json.inputs);
+        }
+        if (!tools.isEmpty(json.outputs)) {
+            // TODO: Validate before add?
+            this._outputs.push(... json.outputs);
+        }
+        if (!tools.isEmpty(json.channels)) {
+            this._channels = json.channels;
+        }
+        if (!tools.isEmpty(json.velocity)) {
+            this._velocity = json.velocity;
+        }
+        if (!tools.isEmpty(json.listen)) {
+            this._listen = json.listen;
+        }
     }
 
-    _toJson(json) {
-        //
+    _toJson() {
+        let result = {
+            inputs: this._inputs,
+            outputs: this._outputs
+        };
+        if (this._channels) {
+            result.channels = this._channels;
+        }
+        if (this._velocity) {
+            result.velocity = this._velocity;
+        }
+        if (this._listen) {
+            result.listen = this._listen;
+        }
+        return result;
     }
 
     _fromRouter(router) {
@@ -196,26 +263,36 @@ class Configuration extends ConfigRecord {
     _fromJson(json) {
         if (json.devices) {
             for (let name in json.devices) {
-                let device = json.devices[name];
-                // todo
+                this._devices[name] = new DeviceRecord();
+                this._devices[name].fromJson(json.devices[name]);
             }
         }
         if (json.mappings) {
             for (let name in json.mappings) {
-                let mapping = json.mappings[name];
-                // todo
+                this._mappings[name] = new MappingRecord();
+                this._mappings[name].fromJson(json.mappings[name]);
             }
         }
-        if (json.clock) {
-            // todo
-        }
-        if (json.options) {
-            // todo
-        }
+        this._clock.fromJson(json.clock);
+        this._options.fromJson(json.options);
     }
 
-    _toJson(json) {
-        //
+    _toJson() {
+        let result = {
+            devices: {},
+            mappings: {},
+            clock: this._clock.toJson(),
+            options: this._options.toJson()
+        };
+        // Device records
+        for (let name in this._devices) {
+            result.devices[name] = this._devices[name].toJson();
+        }
+        // Mapping records
+        for (let name in this._mappings) {
+            result.mappings[name] = this._mappings[name].toJson();
+        }
+        return result;
     }
 
     _fromRouter(router) {
