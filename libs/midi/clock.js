@@ -261,6 +261,10 @@ class Clock {
         this._clock.on('unpause', this._onUnpause);
     }
 
+    get outputs() {
+        return [... this._outputs];
+    }
+
     get tapEnabled() {
         return this._tapEnabled;
     }
@@ -272,12 +276,24 @@ class Clock {
         this._tapEnabled = enabled;
     }
 
+    get tempo() {
+        return this._clock.tempo;
+    }
+
     set tempo(bpm) {
         this._clock.tempo = bpm;
     }
 
+    get patternLength() {
+        return this._clock.patternLength;
+    }
+
     set patternLength(quarterNotes) {
         this._clock.patternLength = quarterNotes;
+    }
+
+    get ppqn() {
+        return this._clock.ppqn;
     }
 
     get playing() {

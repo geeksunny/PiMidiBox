@@ -89,14 +89,6 @@ class DeviceRecord extends ConfigRecord {
             port: this._port
         };
     }
-
-    _fromRouter(router) {
-        //
-    }
-
-    _toRouter(router) {
-        //
-    }
 }
 
 /**
@@ -141,11 +133,16 @@ class ClockRecord extends ConfigRecord {
     }
 
     _fromRouter(router) {
-        //
+        let clock = router.clock;
+        // todo: outputs
+        this._bpm = clock.tempo;
+        this._ppqn = clock.ppqn;
+        this._patternLength = clock.patternLength;
+        this._tapEnabled = clock.tapEnabled;
     }
 
     _toRouter(router) {
-        //
+        router.clock = this._toJson();
     }
 }
 
@@ -180,11 +177,15 @@ class OptionsRecord extends ConfigRecord {
     }
 
     _fromRouter(router) {
-        //
+        this._hotplug = router.hotplug;
+        this._syncConfigToUsb = router.syncConfigToUsb;
+        this._verbose = logger.level.toLowerCase() === 'all';
     }
 
     _toRouter(router) {
-        //
+        router.hotplug = this._hotplug;
+        router.syncConfigToUsb = this._syncConfigToUsb;
+        logger.level = (this._verbose) ? 'all' : 'warn'; // TODO: error instead of warn?
     }
 }
 
@@ -235,14 +236,6 @@ class MappingRecord extends ConfigRecord {
             result.listen = this._listen;
         }
         return result;
-    }
-
-    _fromRouter(router) {
-        //
-    }
-
-    _toRouter(router) {
-        //
     }
 }
 
@@ -297,11 +290,20 @@ class Configuration extends ConfigRecord {
     }
 
     _fromRouter(router) {
-        //
+        // TODO: Devices come from midi.Core ??
+        for (let name in router.mappings) {
+            // todo
+        }
+        this._clock.fromRouter(router);
+        this._options.fromRouter(router);
     }
 
     _toRouter(router) {
-        //
+        for (let name in this._mappings) {
+            // todo: build mappings
+        }
+        this._clock.toRouter(router);
+        this._options.toRouter(router);
     }
 }
 
@@ -537,6 +539,7 @@ class Router {
             this._clock.add(... outputs);
         }
         midi.Core.hotplug = config.options.hotplug;
+        // TODO: Move below block to get/set.syncConfigToUsb
         if (config.options.syncConfigToUsb) {
             this._usb = require('../usb');
             this._usb.Monitor.watchDrives((event, drive) => {
@@ -616,6 +619,35 @@ class Router {
             delete this._mappings[name];
         }
         midi.Core.onExit();
+    }
+
+    get clock() {
+        return this._clock;
+    }
+
+    set clock(options) {
+        // TODO: if no clock exists, set up new clock with options
+        // todo: if clock exists, should we update settings?
+    }
+
+    get mappings() {
+        return this._mappings;
+    }
+
+    get hotplug() {
+        // todo
+    }
+
+    set hotplug(enabled) {
+        // todo
+    }
+
+    get syncConfigToUsb() {
+        // todo
+    }
+
+    set syncConfigToUsb(enabled) {
+        // todo
     }
 }
 

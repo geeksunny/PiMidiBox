@@ -72,14 +72,6 @@ process.on('uncaughtException', (err) => {
 const ipc = require('./config/ipc').request('master');
 ipc.serve(() => {
     logger.log('IPC server started!');
-    // TODO: stuff below should probably be in the Clock.Master
-    // ipc.server.on('clock.connect', (data, socket) => {
-    //     // todo: set up clock in router
-    // });
-    // ipc.server.on('clock.tick', (data, socket) => {
-    //     // todo: tick the clock
-    // });
-    // TODO: should we move the Router init into this callback? IF ipc.server.on is called before ipc.serve(), will that screw things up? TEST!!!
 });
 ipc.server.start();
 // Ready!
