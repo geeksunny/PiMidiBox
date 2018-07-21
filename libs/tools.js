@@ -1,6 +1,24 @@
 module.exports = {
 
     /**
+     * A collection of functions that handle common string formatting actions.
+     */
+    StringFormat: {
+        capitalize(word) {
+            return word.replace(/\w/, c => c.toUpperCase());
+        },
+        pascalCase(string) {
+            return this.capitalize(this.camelCase(string));
+        },
+        camelCase(string) {
+            let words = string.toLowerCase().split(' ');
+            let result = [ words.shift() ];
+            words.forEach(word => result.push(this.capitalize(word)));
+            return result.join('');
+        }
+    },
+
+    /**
      * Get the current value of `process.hrtime()` in nanoseconds.
      * @returns {number}
      */

@@ -2,6 +2,7 @@ const fs = require('fs');
 const logger = require('log4js').getLogger();
 const midi = require('midi');
 const { MessageTypeFilter } = require('./filter');
+const { StringFormat } = require('../tools');
 const usb = require('../usb');
 
 /**
@@ -13,19 +14,34 @@ const usb = require('../usb');
  */
 
 
-const PortRecord = {
-    create: (name, port) => {
-        return { name, port: parseInt(port), nickname: undefined };
-    },
-    parse: (deviceName) => {
+class PortRecord {
+    static parse(deviceName) {
         if (!deviceName) {
-            // TODO: error
             return;
         }
         let match = /^([\w\W]+)\s\d+\:(\d+)$/g.exec(deviceName);
-        return { name: match[1], port: parseInt(match[2]), nickname: undefined };
+        return new PortRecord(match[1], match[2]);
     }
-};
+
+    constructor(name, port, nickname) {
+        // TODO: should we validate name/port?
+        this._name = name;
+        this._port = parseInt(port);
+        this._nickname = (!nickname) ? `${StringFormat.pascalCase(name)}___${port}` : nickname;
+    }
+
+    get name() {
+        return this._name;
+    }
+
+    get port() {
+        return this._port;
+    }
+
+    get nickname() {
+        return this._nickname;
+    }
+}
 
 const byteToStringTypeMap = {
     // basic
@@ -681,7 +697,7 @@ class Core {
                 result.push(... registry[name]);
             } else {
                 for (let devicePort in map[name]) {
-                    let portRecord = PortRecord.create(name, devicePort);
+                    let portRecord = new PortRecord(name, devicePort);
                     let opened = this._open(type, registry, portRecord);
                     result.push(... opened);
                 }
@@ -775,7 +791,7 @@ class Monitor {
             // TODO: Move this into a Core.openAllByName(... names)? Probably yes
             let map = MIDI_CORE.deviceMapByName(usbDevice.name);
             for (let devicePort of map[usbDevice.name]) {
-                let portRecord = PortRecord.create(usbDevice.name, devicePort);
+                let portRecord = new PortRecord(usbDevice.name, devicePort);
                 let input = MIDI_CORE.openInputs(null, portRecord);
                 this._bind(input);
             }
@@ -834,4 +850,4 @@ class Monitor {
 }
 
 
-module.exports = { Core: MIDI_CORE, Message: Message, Monitor: Monitor };
+module.exports = { Core: MIDI_CORE, Message: Message, Monitor: Monitor, PortRecord: PortRecord };
