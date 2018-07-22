@@ -43,6 +43,50 @@ class PortRecord {
     }
 }
 
+class PortIndex {
+    constructor() {
+        this._records = {};
+    }
+
+    get records() {
+        return this._records;
+    }
+
+    add(... items) {
+        for (let item of items) {
+            this.put(item.nickname, item);
+        }
+    }
+
+    get(nickname) {
+        return this._records[nickname];
+    }
+
+    put(nickname, record) {
+        this._records[nickname] = record;
+    }
+
+    find(name) {
+        let result = [];
+        if (name instanceof RegExp) {
+            for (let record of this._records) {
+                if (record.name.match(name)) {
+                    result.push(record);
+                }
+            }
+        } else {
+            for (let record of this._records) {
+                if (record.name === name) {
+                    result.push(record);
+                }
+            }
+        }
+        return result;
+    }
+}
+
+const PORT_INDEX = new PortIndex();
+
 const byteToStringTypeMap = {
     // basic
     0x08: 'noteoff',
@@ -850,4 +894,10 @@ class Monitor {
 }
 
 
-module.exports = { Core: MIDI_CORE, Message: Message, Monitor: Monitor, PortRecord: PortRecord };
+module.exports = {
+    Core: MIDI_CORE,
+    Message: Message,
+    Monitor: Monitor,
+    PortRecord: PortRecord,
+    PortIndex: PORT_INDEX
+};
