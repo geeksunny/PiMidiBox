@@ -58,12 +58,48 @@ class PortIndex {
         }
     }
 
+    has(item) {
+        if (typeof item === 'string') {
+            return !!this._records[item];
+        } else if (item instanceof PortRecord) {
+            for (let record of this._records) {
+                if (record === item) {
+                    return true;
+                }
+            }
+        } // TODO: else?
+        return false;
+    }
+
     get(nickname) {
         return this._records[nickname];
     }
 
     put(nickname, record) {
-        this._records[nickname] = record;
+        if (!record) {
+            this.remove(nickname);
+        } else {
+            if (record instanceof PortRecord) {
+                this._records[nickname] = record;
+            } else if (record.name && record.port) {
+                this._records[nickname] =
+                    new PortRecord(record.name, record.port, (record.nickname) ? record.nickname : nickname);
+            } // TODO: else?
+        }
+    }
+
+    remove(item) {
+        if (typeof item === 'string') {
+            delete this._records[item];
+        } else if (item instanceof PortRecord) {
+            for (let name in this._records) {
+                if (item === this._records[name]) {
+                    delete this._records[name];
+                    break;
+                }
+            }
+        }
+        // TODO: Any other cases for removal here? Maybe a json version of PortRecord?
     }
 
     find(name) {
