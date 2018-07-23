@@ -290,7 +290,12 @@ class Configuration extends ConfigRecord {
     }
 
     _fromRouter(router) {
-        // TODO: Devices come from midi.Core ??
+        let records = midi.PortIndex.records;
+        for (let name in records) {
+            let record = records[name];
+            this._devices[name] = new DeviceRecord();
+            this._devices[name].fromJson({ name: record.name, port: record.port });
+        }
         for (let name in router.mappings) {
             // todo
         }
@@ -299,8 +304,26 @@ class Configuration extends ConfigRecord {
     }
 
     _toRouter(router) {
+        midi.PortIndex.clear();
+        for (let name in this._devices) {
+            midi.PortIndex.put(name, this._devices[name]);
+        }
         for (let name in this._mappings) {
-            // todo: build mappings
+            let record = this._mappings[name].toJson();
+            let inputs = midi.Core.openInputs(record.listen, ... midi.PortIndex.get(... record.inputs));
+            let outputs = midi.Core.openOutputs(... midi.PortIndex.get(... record.outputs));
+            let filters = [];
+            let review = [
+                { type: Filter.ChannelFilter, key: "channels" },
+                { type: Filter.VelocityFilter, key: "velocity" },
+                { type: Filter.ChordFilter, key: "chord" }
+            ];
+            for (let { type, key } of review) {
+                if (record[key]) {
+                    filters.push(new type(record[key]));
+                }
+            }
+            router.addMapping(name, inputs, outputs, filters);
         }
         this._clock.toRouter(router);
         this._options.toRouter(router);

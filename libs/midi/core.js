@@ -58,6 +58,12 @@ class PortIndex {
         }
     }
 
+    clear() {
+        for (let name in this._records) {
+            delete this._records[name];
+        }
+    }
+
     has(item) {
         if (typeof item === 'string') {
             return !!this._records[item];
@@ -71,8 +77,18 @@ class PortIndex {
         return false;
     }
 
-    get(nickname) {
-        return this._records[nickname];
+    get(... nicknames) {
+        if (nicknames.length === 1) {
+            return this._records[nicknames[0]];
+        } else {
+            let result = [];
+            for (let nickname of nicknames) {
+                if (this._records[nickname]) {
+                    result.push(this._records[nickname]);
+                }
+            }
+            return result;
+        }
     }
 
     put(nickname, record) {
