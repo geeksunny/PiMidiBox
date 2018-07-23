@@ -437,6 +437,7 @@ class Router {
         this._started = false;
         this._paused = false;
         this._clock = undefined;
+        this._usb = undefined;
     }
 
     get config() {
@@ -482,100 +483,11 @@ class Router {
             // TODO: Print warning?
             return false;
         }
-        let getPortRecords = (records, requested) => {
-            let reviewed = [], result = [];
-            let request;
-            while ((requested.length > 0) && (request = requested.shift())) {
-                if (reviewed.includes(request)) {
-                    continue;
-                }
-                let record = records[request];
-                if (record) {
-                    record.nickname = request;
-                    result.push(record);
-                }
-                reviewed.push(request);
-            }
-            return result;
-        };
-        let onMessage = (device, message, mapping) => {
-            // TODO: Move this method into outer class for readability
-            // logger.debug(`m: ${device.name} - outputs: ${mapping.outputs.length} || ${JSON.stringify(message)}`);
-            if (this._paused || !this._started) {
-                return;
-            }
-            let processed = mapping.process(message);
-            if (processed) {
-                for (let msg of processed) {
-                    mapping.broadcast(msg.bytes);
-                }
-            }
-        };
+        // TODO: Shift this code over to use the ConfigRecord classes.
         let config = require(path);
         if (config && config.mappings) {
             this._started = true;
         }
-        for (let mapName in config.mappings) {
-            let mapCfg = config.mappings[mapName];
-            // TODO: listenFlags should probably be on input-by-input basis rather than whole mapping
-            let inputs = midi.Core.openInputs(mapCfg.listen, ... getPortRecords(config.devices, mapCfg.inputs));
-            let outputs = midi.Core.openOutputs(... getPortRecords(config.devices, mapCfg.outputs));
-            let filters = [];
-            let review = [
-                { type: Filter.ChannelFilter, key: "channels" },
-                { type: Filter.VelocityFilter, key: "velocity" },
-                { type: Filter.ChordFilter, key: "chord" }
-            ];
-            for (let { type, key } of review) {
-                if (mapCfg[key]) {
-                    filters.push(new type(mapCfg[key]));
-                }
-            }
-            this.addMapping(mapName, inputs, outputs, filters, onMessage);
-        }
-        if (config.clock) {
-            this._clock = new Clock(config.clock);
-            let outputs = midi.Core.openOutputs(... getPortRecords(config.devices, config.clock.outputs));
-            this._clock.add(... outputs);
-        }
-        midi.Core.hotplug = config.options.hotplug;
-        // TODO: Move below block to get/set.syncConfigToUsb
-        if (config.options.syncConfigToUsb) {
-            this._usb = require('../usb');
-            this._usb.Monitor.watchDrives((event, drive) => {
-                if (event === this._usb.Event.REMOVE || drive.isSystem || drive.isReadOnly) {
-                    return;
-                }
-                // TODO: Add in option for whitelist/blacklist of drives to ignore.
-                for (let mountpoint of drive.mountpoints) {
-                    let syncedConfigPath = path.join(mountpoint, SYNCED_CONFIG_FILENAME);
-                    let fileExists = true;
-                    try {
-                        fs.accessSync(syncedConfigPath, fs.constants.R_OK | fs.constants.W_OK)
-                    } catch (err) {
-                        fileExists = false;
-                    }
-                    try {
-                        let fd = fs.openSync(syncedConfigPath, 'a+');
-                        let statsRemote = fs.statSync(syncedConfigPath);
-                        let statsLocal = fs.statSync(path);
-                        if (fileExists && statsRemote.mtimeMs > statsLocal.mtimeMs) {
-                            // TODO: Copy USB config to hard drive, reload config.
-                        } else {
-                            // TODO: Copy config file to USB drive.
-                            // TODO: Add "lastSynced" timestamp value into config file
-                        }
-                        break;  // If we've made it this far, that means the sync operation was successful.
-                    } catch (e) {
-                        logger.error(`Error occurred during USB config sync operation.\n${err}`);
-                    }
-                }
-                drive.unmount().catch((reason) => {
-                    logger.error(`Error unmounting USB drive!\n${reason}`);
-                });
-            })
-        }
-        // TODO: Implement config.options.verbose [GLOBAL SCALE?]
         return true;
     }
 
@@ -585,7 +497,7 @@ class Router {
      * @param {Input[]} inputs - Array of Inputs to map from.
      * @param {Output[]} outputs - Array of Outputs to map to.
      * @param {Filter[]} filters - Array of filters to apply to this mapping.
-     * @param {mappingMessageHandler} onMessage - Callback function for handling input messages.
+     * @param {mappingMessageHandler} [onMessage] - Callback function for handling input messages.
      */
     addMapping(name, inputs, outputs, filters, onMessage) {
         if (this._mappings[name]) {
@@ -596,6 +508,9 @@ class Router {
         this._mappings[name] = new Mapping(inputs, outputs);
         if (filters) {
             this._mappings[name].addFilters(... filters);
+        }
+        if (!onMessage) {
+            onMessage = this._onMessage;
         }
         this._mappings[name].activate(onMessage);
     }
@@ -613,6 +528,52 @@ class Router {
         delete this._mappings[name];
     }
 
+    _onMessage(device, message, mapping) {
+        // logger.debug(`m: ${device.name} - outputs: ${mapping.outputs.length} || ${JSON.stringify(message)}`);
+        if (this._paused || !this._started) {
+            return;
+        }
+        let processed = mapping.process(message);
+        if (processed) {
+            for (let msg of processed) {
+                mapping.broadcast(msg.bytes);
+            }
+        }
+    }
+
+    _onDriveEvent(event, drive) {
+        if (event === this._usb.Event.REMOVE || drive.isSystem || drive.isReadOnly) {
+            return;
+        }
+        // TODO: Add in option for whitelist/blacklist of drives to ignore.
+        for (let mountpoint of drive.mountpoints) {
+            let syncedConfigPath = path.join(mountpoint, SYNCED_CONFIG_FILENAME);
+            let fileExists = true;
+            try {
+                fs.accessSync(syncedConfigPath, fs.constants.R_OK | fs.constants.W_OK)
+            } catch (err) {
+                fileExists = false;
+            }
+            try {
+                let fd = fs.openSync(syncedConfigPath, 'a+');
+                let statsRemote = fs.statSync(syncedConfigPath);
+                let statsLocal = fs.statSync(path);
+                if (fileExists && statsRemote.mtimeMs > statsLocal.mtimeMs) {
+                    // TODO: Copy USB config to hard drive, reload config.
+                } else {
+                    // TODO: Copy config file to USB drive.
+                    // TODO: Add "lastSynced" timestamp value into config file ___OR___ be sure to touch local config at same time as sync
+                }
+                break;  // If we've made it this far, that means the sync operation was successful.
+            } catch (e) {
+                logger.error(`Error occurred during USB config sync operation.\n${err}`);
+            }
+        }
+        drive.unmount().catch((reason) => {
+            logger.error(`Error unmounting USB drive!\n${reason}`);
+        });
+    }
+
     onExit() {
         for (let name in this._mappings) {
             this._mappings[name].deactivate();
@@ -626,7 +587,12 @@ class Router {
     }
 
     set clock(options) {
-        // TODO: if no clock exists, set up new clock with options
+        if (!this._clock) {
+            this._clock = new Clock(options);
+            // TODO: move device opening into ClockRecord
+            // let outputs = midi.Core.openOutputs(... getPortRecords(config.devices, config.clock.outputs));
+            // this._clock.add(... outputs);
+        }
         // todo: if clock exists, should we update settings?
     }
 
@@ -635,19 +601,30 @@ class Router {
     }
 
     get hotplug() {
-        // todo
+        return midi.Core.hotplug;
     }
 
     set hotplug(enabled) {
-        // todo
+        if (midi.Core.hotplug !== enabled) {
+            midi.Core.hotplug = enabled;
+        }
     }
 
     get syncConfigToUsb() {
-        // todo
+        return this._usb !== undefined;
     }
 
     set syncConfigToUsb(enabled) {
-        // todo
+        if (this.syncConfigToUsb === enabled) {
+            return;
+        }
+        if (enabled) {
+            this._usb = require('../usb');
+            this._usb.Monitor.watchDrives(this._onDriveEvent);
+        } else {
+            this._usb.Monitor.stopWatching(this._onDriveEvent);
+            this._usb = undefined;
+        }
     }
 }
 

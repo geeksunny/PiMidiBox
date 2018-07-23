@@ -246,7 +246,7 @@ class Master extends EventEmitter {
 
 // TODO: figure out logic for sharing ticks/pulses with multiple ppqn. master:24ppqn,slave:2ppqn - this would work due to the easy even numbers... non-multiples wouldn't be able to share since this blocks the thread its on. non-multiples would require multiple threads spun up.
 class Clock {
-    constructor({ bpm = 120, ppqn = 24, patternLength = 16, tapEnabled = true } = {}) {
+    constructor({ bpm = 120, ppqn = 24, patternLength = 16, tapEnabled = true, outputs = [] } = {}) {
         // TODO: Add play queueing, play immediately features. Stop queueing as well? (fires at end of current pattern) If not queued, should a sequence position be sent to sync device sequencers?
         this._playing = false;
         this._paused = false;
@@ -259,6 +259,7 @@ class Clock {
         this._clock.on('stop', this._onStopOnPause);
         this._clock.on('pause', this._onStopOnPause);
         this._clock.on('unpause', this._onUnpause);
+        this.add(... outputs);
     }
 
     get outputs() {
@@ -330,6 +331,7 @@ class Clock {
     add(... outputs) {
         // TODO: address queuing option if clocks are already running
         // TODO: should we enforce a no-duplicate output rule here? probably yes? we can use output.name/port for matching/indexing
+        // TODO: VALIDATE that outputs is instanceof midi.Output
         this._outputs.push(... outputs);
     }
 
