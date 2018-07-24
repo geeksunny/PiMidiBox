@@ -1,6 +1,6 @@
 const EventEmitter = require('eventemitter3');
 const cp = require('../childprocess');
-const ipc = require('../../config/ipc').request('master');
+const ipc = require('../../config/ipc').server('master');
 const logger = require('log4js').getLogger();
 const { Message, Output } = require('./core');
 const tools = require('../tools');
@@ -130,17 +130,17 @@ class Master extends EventEmitter {
     }
 
     _setup() {
-        ipc.server.on('clock.ready', (data, socket) => {
+        ipc.on('clock.ready', (data, socket) => {
             this._socket = socket;
             this._updateWorker();
         });
-        ipc.server.on('clock.tick', () => {
+        ipc.on('clock.tick', () => {
             this.emit('tick', {
                 tick: new Tick(this._pos++, this._ppqn, this._patternLength),
                 ticks: ++this._ticks
             });
         });
-        ipc.server.on('clock.state', ({ started }) => {
+        ipc.on('clock.state', ({ started }) => {
             if (typeof started !== 'boolean') {
                 logger.error(`Unsupported type passed for 'clock.state.started' (${typeof started}), requires boolean.`);
                 return;
@@ -157,14 +157,14 @@ class Master extends EventEmitter {
                 this.emit(started ? 'start' : 'stop');
             }
         });
-        ipc.server.on('clock.error', ({ message }) => {
+        ipc.on('clock.error', ({ message }) => {
             logger.error(`Clock error occurred!\n${message}`);
         });
     }
 
     _updateWorker() {
         if (this._socket) {
-            ipc.server.emit(this._socket, 'clock.config', { tickLength: this._tickLength });
+            ipc.emit('clock.config', { tickLength: this._tickLength }, this._socket);
             if (this._startQueued) {
                 this._startQueued = false;
                 this.start();
@@ -176,7 +176,7 @@ class Master extends EventEmitter {
         if (this._socket) {
             if (!this._started) {
                 this._paused = false;
-                ipc.server.emit(this._socket, 'clock.control', { action: 'start' });
+                ipc.emit('clock.control', { action: 'start' }, this._socket);
             }
             return;
         }
@@ -189,7 +189,7 @@ class Master extends EventEmitter {
     stop() {
         if (this._socket && (this._started || this._ticks > 0)) {
             this._paused = false;
-            ipc.server.emit(this._socket, 'clock.control', { action: 'stop' });
+            ipc.emit('clock.control', { action: 'stop' }, this._socket);
             this._pos = 0;
             this._ticks = 0;
         }
@@ -198,13 +198,13 @@ class Master extends EventEmitter {
     pause() {
         if (this._socket && (this._started && !this._paused)) {
             this._paused = true;
-            ipc.server.emit(this._socket, 'clock.control', { action: 'stop' });
+            ipc.emit('clock.control', { action: 'stop' }, this._socket);
         }
     }
 
     unpause() {
         if (this._socket && (this._started && this._paused)) {
-            ipc.server.emit(this._socket, 'clock.control', { action: 'start' });
+            ipc.emit('clock.control', { action: 'start' }, this._socket);
         }
     }
 

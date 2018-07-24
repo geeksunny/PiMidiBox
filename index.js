@@ -69,10 +69,9 @@ process.on('uncaughtException', (err) => {
     process.exit(1);
 });
 // Set up IPC server.
-const ipc = require('./config/ipc').request('master');
-ipc.serve(() => {
+const ipc = require('./config/ipc').server('master');
+ipc.start(() => {
     logger.info('IPC server started!');
 });
-ipc.server.start();
 // Ready!
 logger.info('Ready.');

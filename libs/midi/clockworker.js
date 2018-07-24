@@ -1,5 +1,5 @@
 const EventEmitter = require('eventemitter3');
-const ipc = require('../../config/ipc').request('clock');
+const ipc = require('../../config/ipc').client('clock', 'master');
 const sleep = require('sleep');
 const { now } = require('../tools');
 
@@ -18,13 +18,13 @@ class Worker extends EventEmitter {
     }
 
     _setup() {
-        ipc.of.master.on('clock.config', this._config);
-        ipc.of.master.on('clock.control', this._control);
-        ipc.of.master.on('destroy', () => {
+        ipc.on('clock.config', this._config);
+        ipc.on('clock.control', this._control);
+        ipc.on('destroy', () => {
             this.emit('destroy');
         });
-        ipc.connectTo('master', () => {
-            ipc.of.master.emit('clock.ready');
+        ipc.start(() => {
+            ipc.emit('clock.ready');
         });
     }
 
@@ -39,7 +39,7 @@ class Worker extends EventEmitter {
             case 'start':
                 if (!this._started) {
                     this._started = true;
-                    ipc.of.master.emit('clock.state', { started: true });
+                    ipc.emit('clock.state', { started: true });
                     this._nextAt = now();
                     this.emit('tick');
                 }
@@ -54,7 +54,7 @@ class Worker extends EventEmitter {
 
     _tick() {
         if (this._stopQueued) {
-            ipc.of.master.emit('clock.state', { started: false });
+            ipc.emit('clock.state', { started: false });
             this._stopQueued = false;
             this._started = false;
         } else if (this._started) {
@@ -62,13 +62,13 @@ class Worker extends EventEmitter {
             let diff = this._nextAt - now();
             if (diff > 0) {
                 sleep.nsleep(diff);
-                ipc.of.master.emit('clock.tick');
+                ipc.emit('clock.tick');
                 this.emit('tick');
             } else {
-                ipc.of.master.emit('clock.error', {
+                ipc.emit('clock.error', {
                     message: `Received invalid diff value (${diff}). Timeout expired before performing any thread sleep. Timing at this precision may not be achievable.`
                 });
-                ipc.of.master.emit('clock.state', { started: false });
+                ipc.emit('clock.state', { started: false });
                 this._stopQueued = false;
                 this._started = false;
             }
