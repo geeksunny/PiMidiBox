@@ -1,19 +1,32 @@
 const ipc = require('node-ipc');
+const logger = require('log4js').getLogger();
 
 /*
  * Singleton class for ensuring the IPC module is only being configured once-per-process.
+ * Provides an adapter object for with a shared API between Client and Server usage.
  * Once a valid configuration is requested, any subsequent requests of a differing name will
  * throw an exception.
  *
- * Usage: const ipc = require('config/ipc.js').request('master');
+ * Usage:
+ *  const ipc = require('config/ipc').server('master');
+ *    OR
+ *  const ipc = require('config/ipc').client('worker', 'master');
+ *
+ *  ipc.on('event.name' (data, socket) => { ... });
+ *  ipc.emit('event.name', data[, socket]);
+ *  ipc.start(() => { ... });
  */
 
 // TODO: expose constants of server names
 
 const settings = {
     "master": {
-        id: "master"
-    },
+        id: "master",
+        logger (... texts) {
+            logger.info(... texts);
+        }
+    }
+    ,
     "clock": {
         id: "clock"
     },
