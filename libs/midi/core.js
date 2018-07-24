@@ -948,6 +948,8 @@ class Monitor {
 
 module.exports = {
     Core: MIDI_CORE,
+    Input: Input,
+    Output: Output,
     Message: Message,
     Monitor: Monitor,
     PortRecord: PortRecord,

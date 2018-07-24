@@ -134,7 +134,9 @@ class ClockRecord extends ConfigRecord {
 
     _fromRouter(router) {
         let clock = router.clock;
-        // todo: outputs
+        for (let output of clock.outputs) {
+            this._outputs.push(output.nickname);
+        }
         this._bpm = clock.tempo;
         this._ppqn = clock.ppqn;
         this._patternLength = clock.patternLength;
@@ -142,7 +144,9 @@ class ClockRecord extends ConfigRecord {
     }
 
     _toRouter(router) {
-        router.clock = this._toJson();
+        let json = this._toJson();
+        json.outputs = midi.Core.openOutputs(... midi.PortIndex.get(... this._outputs));
+        router.clock = json;
     }
 }
 
@@ -612,9 +616,6 @@ class Router {
     set clock(options) {
         if (!this._clock) {
             this._clock = new Clock(options);
-            // TODO: move device opening into ClockRecord
-            // let outputs = midi.Core.openOutputs(... getPortRecords(config.devices, config.clock.outputs));
-            // this._clock.add(... outputs);
         }
         // todo: if clock exists, should we update settings?
     }

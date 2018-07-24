@@ -2,7 +2,7 @@ const EventEmitter = require('eventemitter3');
 const cp = require('../childprocess');
 const ipc = require('../../config/ipc').request('master');
 const logger = require('log4js').getLogger();
-const { Message } = require('./core');
+const { Message, Output } = require('./core');
 const tools = require('../tools');
 
 // TODO: Add configuration option for microseconds over nanoseconds
@@ -259,7 +259,9 @@ class Clock {
         this._clock.on('stop', this._onStopOnPause);
         this._clock.on('pause', this._onStopOnPause);
         this._clock.on('unpause', this._onUnpause);
-        this.add(... outputs);
+        if (Array.isArray(outputs)) {
+            this.add(... outputs);
+        }
     }
 
     get outputs() {
@@ -331,8 +333,13 @@ class Clock {
     add(... outputs) {
         // TODO: address queuing option if clocks are already running
         // TODO: should we enforce a no-duplicate output rule here? probably yes? we can use output.name/port for matching/indexing
-        // TODO: VALIDATE that outputs is instanceof midi.Output
-        this._outputs.push(... outputs);
+        for (let output of outputs) {
+            if (output instanceof Output) {
+                this._outputs.push(output);
+            } else {
+                logger.warn(`Invalid entry provided as an Output. (${output})`);
+            }
+        }
     }
 
     remove(... outputs) {
