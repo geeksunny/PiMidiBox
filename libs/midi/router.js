@@ -1,6 +1,7 @@
 const logger = require('log4js').getLogger();
 const midi = require('./core');
 const Clock = require('./clock');
+const files = require('../files');
 const Filter = require('./filter');
 const fs = require('fs');
 const path = require('path');
@@ -248,7 +249,14 @@ class MappingRecord extends ConfigRecord {
  */
 class Configuration extends ConfigRecord {
     static fromFile(filePath) {
-        // todo
+        let json = files.readFileAsJSON(filePath);
+        if (json) {
+            let config = new Configuration();
+            config.fromJson(json);
+            return config;
+        } else {
+            throw "Invalid data provided for Configuration!";
+        }
     }
 
     _reset() {
@@ -510,11 +518,9 @@ class Router {
             // TODO: Print warning?
             return false;
         }
-        // TODO: Shift this code over to use the ConfigRecord classes.
-        let config = require(path);
-        if (config && config.mappings) {
-            this._started = true;
-        }
+        let config = Configuration.fromFile(path);
+        config.toRouter(this);
+        this._started = true;
         return true;
     }
 
