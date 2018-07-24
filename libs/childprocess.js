@@ -32,7 +32,7 @@ const _fork = (label, filePath, args, options) => {
     // TODO: make stdout/stderr printing optional
     let forked = fork(filePath, args, options);
     forked.stdout.on('data', (data) => {
-        logger.log(`[${label}:out] ${data}`);
+        logger.info(`[${label}:out] ${data}`);
     });
     forked.stderr.on('data', (data) => {
         logger.error(`[${label}:err] ${data}`);

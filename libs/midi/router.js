@@ -75,19 +75,19 @@ class ConfigRecord {
  */
 class DeviceRecord extends ConfigRecord {
     _reset() {
-        this._name = undefined;
-        this._port = undefined;
+        this.name = undefined;
+        this.port = undefined;
     }
 
     _fromJson(json) {
-        this._name = json.name;
-        this._port = json.port;
+        this.name = json.name;
+        this.port = json.port;
     }
 
     _toJson() {
         return {
-            name: this._name,
-            port: this._port
+            name: this.name,
+            port: this.port
         };
     }
 }
@@ -146,7 +146,7 @@ class ClockRecord extends ConfigRecord {
 
     _toRouter(router) {
         let json = this._toJson();
-        json.outputs = midi.Core.openOutputs(... midi.PortIndex.get(... this._outputs));
+        json.outputs = midi.Core.openOutputs(... midi.PortIndex.gather(... this._outputs));
         router.clock = json;
     }
 }
@@ -322,8 +322,8 @@ class Configuration extends ConfigRecord {
         }
         for (let name in this._mappings) {
             let record = this._mappings[name].toJson();
-            let inputs = midi.Core.openInputs(record.listen, ... midi.PortIndex.get(... record.inputs));
-            let outputs = midi.Core.openOutputs(... midi.PortIndex.get(... record.outputs));
+            let inputs = midi.Core.openInputs(record.listen, ... midi.PortIndex.gather(... record.inputs));
+            let outputs = midi.Core.openOutputs(... midi.PortIndex.gather(... record.outputs));
             let filters = [];
             let review = [
                 { type: Filter.ChannelFilter, key: "channels" },

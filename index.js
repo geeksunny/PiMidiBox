@@ -42,7 +42,7 @@ logger.level = (argv.verbose) ? 'all' : 'warn'; // TODO: error instead of warn?
 
 if (argv.configure) {
     // TODO: Execute configuration wizard.
-    logger.log('Configuration Wizard invoked.');
+    logger.info('Configuration Wizard invoked.');
     const wizard = require('./libs/wizard');
     wizard(argv.config);
     process.exit();
@@ -61,7 +61,7 @@ const midiRouter = new Router.Router();
 midiRouter.loadConfig(argv.config);
 // Handle exit events.
 require('signal-exit')((code, signal) => {
-    logger.log(`Exit event detected: ${signal} (${code})`);
+    logger.info(`Exit event detected: ${signal} (${code})`);
     midiRouter.onExit();
 });
 process.on('uncaughtException', (err) => {
@@ -71,8 +71,8 @@ process.on('uncaughtException', (err) => {
 // Set up IPC server.
 const ipc = require('./config/ipc').request('master');
 ipc.serve(() => {
-    logger.log('IPC server started!');
+    logger.info('IPC server started!');
 });
 ipc.server.start();
 // Ready!
-logger.log('Ready.');
+logger.info('Ready.');

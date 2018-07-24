@@ -77,18 +77,18 @@ class PortIndex {
         return false;
     }
 
-    get(... nicknames) {
-        if (nicknames.length === 1) {
-            return this._records[nicknames[0]];
-        } else {
-            let result = [];
-            for (let nickname of nicknames) {
-                if (this._records[nickname]) {
-                    result.push(this._records[nickname]);
-                }
+    get(nickname) {
+        return this._records[nickname];
+    }
+
+    gather(... nicknames) {
+        let result = [];
+        for (let nickname of nicknames) {
+            if (this._records[nickname]) {
+                result.push(this._records[nickname]);
             }
-            return result;
         }
+        return result;
     }
 
     put(nickname, record) {
@@ -97,7 +97,7 @@ class PortIndex {
         } else {
             if (record instanceof PortRecord) {
                 this._records[nickname] = record;
-            } else if (record.name && record.port) {
+            } else if (record.name && record.port !== undefined) {
                 this._records[nickname] =
                     new PortRecord(record.name, record.port, (record.nickname) ? record.nickname : nickname);
             } // TODO: else?
