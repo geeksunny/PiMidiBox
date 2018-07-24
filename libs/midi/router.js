@@ -581,17 +581,9 @@ class Router {
         // TODO: Add in option for whitelist/blacklist of drives to ignore.
         for (let mountpoint of drive.mountpoints) {
             let syncedConfigPath = path.join(mountpoint, SYNCED_CONFIG_FILENAME);
-            let fileExists = true;
-            try {
-                fs.accessSync(syncedConfigPath, fs.constants.R_OK | fs.constants.W_OK)
-            } catch (err) {
-                fileExists = false;
-            }
             try {
                 let fd = fs.openSync(syncedConfigPath, 'a+');
-                let statsRemote = fs.statSync(syncedConfigPath);
-                let statsLocal = fs.statSync(path);
-                if (fileExists && statsRemote.mtimeMs > statsLocal.mtimeMs) {
+                if (files.canReadWrite(syncedConfigPath) && files.modifiedSoonerThan(syncedConfigPath, path)) {
                     // TODO: Copy USB config to hard drive, reload config.
                 } else {
                     // TODO: Copy config file to USB drive.

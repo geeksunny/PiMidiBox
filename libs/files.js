@@ -1,12 +1,28 @@
 const fs = require('fs');
-const path = require('path');
 
 module.exports = {
-    getCurrentDirectoryBase : function() {
-        return path.basename(process.cwd());
+    canReadWrite(filePath) {
+        try {
+            fs.accessSync(filePath, fs.constants.R_OK | fs.constants.W_OK);
+            return true;
+        } catch (err) {
+            return false;
+        }
     },
 
-    directoryExists : function(filePath) {
+    createdSoonerThan(filePathA, filePathB) {
+        let statsA = fs.statSync(filePathA);
+        let statsB = fs.statSync(filePathB);
+        return statsA.birthtimeMs > statsB.birthtimeMs;
+    },
+
+    modifiedSoonerThan(filePathA, filePathB) {
+        let statsA = fs.statSync(filePathA);
+        let statsB = fs.statSync(filePathB);
+        return statsA.mtimeMs > statsB.mtimeMs;
+    },
+
+    directoryExists(filePath) {
         try {
             return fs.statSync(filePath).isDirectory();
         } catch (err) {
@@ -14,7 +30,7 @@ module.exports = {
         }
     },
 
-    fileExists : function(filePath) {
+    fileExists(filePath) {
         try {
             return fs.statSync(filePath).isFile();
         } catch (err) {
@@ -22,7 +38,7 @@ module.exports = {
         }
     },
 
-    readFileAsString: function(filePath) {
+    readFileAsString(filePath) {
         try {
             return fs.readFileSync(filePath);
         } catch (err) {
@@ -30,7 +46,7 @@ module.exports = {
         }
     },
 
-    readFileAsJSON: function(filePath) {
+    readFileAsJSON(filePath) {
         try {
             let fileContents = fs.readFileSync(filePath);
             return JSON.parse(fileContents);
@@ -39,7 +55,7 @@ module.exports = {
         }
     },
 
-    saveObjectAsJSONFile: function(obj, filePath, prettyPrint = false) {
+    saveObjectAsJSONFile(obj, filePath, prettyPrint = false) {
         try {
             let space = prettyPrint ? 4 : 0;
             fs.writeFileSync(filePath, JSON.stringify(obj, null, space));
