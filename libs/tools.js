@@ -94,6 +94,15 @@ module.exports = {
         }
     },
 
+    containsValue(obj, value) {
+        for (let val of obj) {
+            if (val === value) {
+                return true;
+            }
+        }
+        return false;
+    },
+
     isPrimitive(value) {
         return value !== Object(value);
     },
