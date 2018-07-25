@@ -308,8 +308,39 @@ class Configuration extends ConfigRecord {
             this._devices[name] = new DeviceRecord();
             this._devices[name].fromJson({ name: record.name, port: record.port });
         }
-        for (let name in router.mappings) {
-            // todo
+        let mappings = router.mappings;
+        for (let name in mappings) {
+            let mapping = mappings[name];
+            let json = {
+                inputs: [],
+                outputs: []
+            };
+            for (let input of mapping.inputs) {
+                json.inputs.push(input.nickname);
+            }
+            for (let output of mapping.outputs) {
+                json.outputs.push(output.nickname);
+            }
+            for (let filter of mapping.filters) {
+                let key;
+                switch (filter.constructor) {
+                    case Filter.ChannelFilter:
+                        key = "channels";
+                        break;
+                    case Filter.VelocityFilter:
+                        key = "velocity";
+                        break;
+                    case Filter.ChordFilter:
+                        key = "chord";
+                        break;
+                    default:
+                        // Skipping unknown filters
+                        continue;
+                }
+                json[key] = filter.settings;
+            }
+            this._mappings[name] = new MappingRecord();
+            this._mappings[name].fromJson(json);
         }
         this._clock.fromRouter(router);
         this._options.fromRouter(router);
