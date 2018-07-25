@@ -228,7 +228,7 @@ class MessageTypeFilter extends Filter {
         for (let type of types) {
             switch (typeof type) {
                 case 'number':
-                    if (type in Message.bytetoStringTypeMap) {
+                    if (type in Message.byteToStringTypeMap) {
                         result.push(type);
                     } // TODO: else, throw/warn?
                     break;
@@ -245,11 +245,11 @@ class MessageTypeFilter extends Filter {
     }
 
     set whitelist(items) {
-        this._whitelist = MessageFilter._makeList(... items);
+        this._whitelist = MessageTypeFilter._makeList(... items);
     }
 
     set blacklist(items) {
-        this._blacklist = MessageFilter._makeList(... items);
+        this._blacklist = MessageTypeFilter._makeList(... items);
     }
 
     _process(message) {

@@ -1,9 +1,7 @@
 const fs = require('fs');
 const logger = require('log4js').getLogger();
 const midi = require('midi');
-const { MessageTypeFilter } = require('./filter');
 const { StringFormat } = require('../tools');
-const usb = require('../usb');
 
 /**
  * onMessage callbacks handle incoming MIDI messages with regards to the mapping.
@@ -225,7 +223,7 @@ class Message {
         return result;
     }
 
-    static get bytetoStringTypeMap() {
+    static get byteToStringTypeMap() {
         return byteToStringTypeMap;
     }
 
@@ -847,111 +845,12 @@ class Core {
 
 const MIDI_CORE = new Core();
 
-class Monitor {
-    constructor({ inputs = [], hotplug = true, messageTypes = [0x0B], handler }) {
-        if (Array.isArray(messageTypes) && !!messageTypes.length) {
-            this._filter = new MessageTypeFilter({ whitelist: messageTypes });
-        }
-        if (!handler) {
-            handler = (device, message) => {
-                logger.debug(`Device: ${device.name} | Message: ${message.typeString}, ${message.bytes}`);
-            }
-        }
-        this.handler = handler;
-        this._inputs = {};
-        if (!Array.isArray(inputs) || !inputs.length) {
-            inputs = MIDI_CORE.openAllInputs();
-        }
-        if (inputs && !!inputs.length) {
-            for (let input of inputs) {
-                this._bind(input);
-            }
-        }
-        MIDI_CORE.hotplug = true;
-        this.hotplug = hotplug;
-    }
-
-    _isWatched(name) {
-        return !!this._inputs[name];
-    }
-
-    _handleMessage(device, message) {
-        if (this._filter && !this._filter.process(message)) {
-            return;
-        }
-        this._handler(device, message);
-    }
-
-    _handleUsb(event, usbDevice) {
-        if (!this._inputs[usbDevice.name]) {
-            // TODO: Move this into a Core.openAllByName(... names)? Probably yes
-            let map = MIDI_CORE.deviceMapByName(usbDevice.name);
-            for (let devicePort of map[usbDevice.name]) {
-                let portRecord = new PortRecord(usbDevice.name, devicePort);
-                let input = MIDI_CORE.openInputs(null, portRecord);
-                this._bind(input);
-            }
-        }
-    }
-
-    _bind(input) {
-        if (!this._inputs[input.name]) {
-            this._inputs[input.name] = [];
-        }
-        if (!this._inputs[input.name][input.port]) {
-            input.bind(this._handleMessage);
-            this._inputs[input.name][input.port] = input;
-        }
-        // TODO: Should we check .isOpen and open if false?
-    }
-
-    get handler() {
-        return this._handler;
-    }
-
-    set handler(handler) {
-        if (typeof handler !== 'function') {
-            throw "Monitor handler must be a function!";
-        }
-        this._handler = handler;
-    }
-
-    get hotplug() {
-        return this._hotplug;
-    }
-
-    set hotplug(hotplug) {
-        if (hotplug === this._hotplug) {
-            return;
-        }
-        if (hotplug) {
-            usb.Monitor.watchDevices(this._handleUsb);
-        } else if (this._hotplug) {
-            usb.Monitor.stopWatching(this._handleUsb);
-        }
-        this._hotplug = hotplug;
-    }
-
-    close() {
-        this.hotplug = false;
-        for (let name in this._inputs) {
-            for (let devicePort in name) {
-                let input = this._inputs[name][devicePort];
-                input.unbind(this._handleMessage);
-                delete this._inputs[name][devicePort];
-            }
-            delete this._inputs[name];
-        }
-    }
-}
-
 
 module.exports = {
     Core: MIDI_CORE,
     Input: Input,
     Output: Output,
     Message: Message,
-    Monitor: Monitor,
     PortRecord: PortRecord,
     PortIndex: PORT_INDEX
 };

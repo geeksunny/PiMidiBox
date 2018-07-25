@@ -29,6 +29,11 @@ const argv = require('yargs')
         description: 'Maintain device connections after starting the router',
         type: 'boolean'
     })
+    .option('monitor', {
+        default: false,
+        description: 'Monitor mode, reports all MIDI traffic for easy inspection',
+        type: 'boolean'
+    })
     .option('v', {
         alias: 'verbose',
         default: false,
@@ -54,24 +59,27 @@ if (argv.configure) {
         }
     }
     process.exit()
+} else if (argv.monitor) {
+    let { Monitor } = require('./libs/midi/utils');
+    let m = new Monitor();
+} else {
+    const Router = require('./libs/midi/router');
+    const midiRouter = new Router.Router();
+    midiRouter.loadConfig(argv.config);
+    // Handle exit events.
+    require('signal-exit')((code, signal) => {
+        logger.info(`Exit event detected: ${signal} (${code})`);
+        midiRouter.onExit();
+    });
+    process.on('uncaughtException', (err) => {
+        logger.error(`UncaughtException: ${err}`);
+        process.exit(1);
+    });
+    // Set up IPC server.
+    const ipc = require('./config/ipc').server('master');
+    ipc.start(() => {
+        logger.info('IPC server started!');
+    });
+    // Ready!
+    logger.info('Ready.');
 }
-
-const Router = require('./libs/midi/router');
-const midiRouter = new Router.Router();
-midiRouter.loadConfig(argv.config);
-// Handle exit events.
-require('signal-exit')((code, signal) => {
-    logger.info(`Exit event detected: ${signal} (${code})`);
-    midiRouter.onExit();
-});
-process.on('uncaughtException', (err) => {
-    logger.error(`UncaughtException: ${err}`);
-    process.exit(1);
-});
-// Set up IPC server.
-const ipc = require('./config/ipc').server('master');
-ipc.start(() => {
-    logger.info('IPC server started!');
-});
-// Ready!
-logger.info('Ready.');
