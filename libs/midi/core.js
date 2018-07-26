@@ -1,7 +1,7 @@
 const fs = require('fs');
 const logger = require('log4js').getLogger();
 const midi = require('midi');
-const { StringFormat } = require('../tools');
+const tools = require('../tools');
 
 /**
  * onMessage callbacks handle incoming MIDI messages with regards to the mapping.
@@ -27,7 +27,7 @@ class PortRecord {
         // TODO: should we validate name/port?
         this._name = name;
         this._port = parseInt(port);
-        this._nickname = (!nickname) ? `${StringFormat.pascalCase(name)}___${port}` : nickname;
+        this._nickname = (!nickname) ? `${tools.StringFormat.pascalCase(name)}___${port}` : nickname;
     }
 
     get name() {
