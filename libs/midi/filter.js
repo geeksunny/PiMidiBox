@@ -10,6 +10,15 @@ const { Message } = require('./core');
 class Filter {
     constructor() {
         this._paused = false;
+        this._bindings = {};
+    }
+
+    bind(name, type, properties, handler) {
+        this._bindings[type] = { name, properties, handler };
+    }
+
+    unbind(type) {
+        delete this._bindings[type];
     }
 
     pause() {
@@ -32,8 +41,30 @@ class Filter {
         return this._paused;
     }
 
+    _processBindings(message) {
+        let binding = this._bindings[message.type];
+        if (binding) {
+            let { name, properties, handler } = binding;
+            for (let key in properties) {
+                if (message[key] !== properties[key]) {
+                    return false;
+                }
+            }
+            logger.debug(`${this.constructor.name} process handled by mapped action '${name}'.`);
+            handler(message);
+            return true;
+        }
+        return false;
+    }
+
     process(message) {
-        return (this._paused) ? message : this._process(message);
+        if (this._paused) {
+            return message;
+        } else if (this._processBindings(message)) {
+            return false;
+        } else {
+            return this._process(message);
+        }
     }
 
     /**
