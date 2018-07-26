@@ -99,12 +99,12 @@ class ChannelFilter extends Filter {
     _process(message) {
         let channel = message.channel + 1;
         if (!!this._whitelist.length) {
-            if (!tools.hasValue(this._whitelist, channel)) {
+            if (!tools.containsValue(this._whitelist, channel)) {
                 logger.debug(`Channel is not whitelisted! ${channel}`);
                 return false;
             }
         } else if (!!this._blacklist.length) {
-            if (tools.hasValue(this._blacklist, channel)) {
+            if (tools.containsValue(this._blacklist, channel)) {
                 logger.debug(`Blacklisted!! ${channel}`);
                 return false;
             }
@@ -254,9 +254,9 @@ class MessageTypeFilter extends Filter {
 
     _process(message) {
         if (!!this._whitelist.length) {
-            return (tools.hasValue(this._whitelist, message.type)) ? message : false;
+            return (tools.containsValue(this._whitelist, message.type)) ? message : false;
         } else if (!!this._blacklist.length) {
-            return (tools.hasValue(this._blacklist, message.type)) ? false : message;
+            return (tools.containsValue(this._blacklist, message.type)) ? false : message;
         } else {
             return message;
         }
