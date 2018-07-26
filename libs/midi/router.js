@@ -260,6 +260,7 @@ class Configuration extends ConfigRecord {
     }
 
     _reset() {
+        this._ignore = [];
         this._devices = {};
         this._mappings = {};
         this._clock = new ClockRecord();
@@ -267,6 +268,9 @@ class Configuration extends ConfigRecord {
     }
 
     _fromJson(json) {
+        if (json.ignore && Array.isArray(json.ignore)) {
+            this._ignore = [... json.ignore];
+        }
         if (json.devices) {
             for (let name in json.devices) {
                 this._devices[name] = new DeviceRecord();
@@ -285,6 +289,7 @@ class Configuration extends ConfigRecord {
 
     _toJson() {
         let result = {
+            ignore: [... this._ignore],
             devices: {},
             mappings: {},
             clock: this._clock.toJson(),
@@ -302,6 +307,7 @@ class Configuration extends ConfigRecord {
     }
 
     _fromRouter(router) {
+        this._ignore = [... midi.Core.ignoredDevices];
         let records = midi.PortIndex.records;
         for (let name in records) {
             let record = records[name];
@@ -347,6 +353,7 @@ class Configuration extends ConfigRecord {
     }
 
     _toRouter(router) {
+        midi.Core.ignoredDevices = this._ignore;
         midi.PortIndex.clear();
         for (let name in this._devices) {
             midi.PortIndex.put(name, this._devices[name]);

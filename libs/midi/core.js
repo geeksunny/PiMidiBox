@@ -12,6 +12,8 @@ const { StringFormat } = require('../tools');
  */
 
 
+const IGNORE_DEVICES_DEFAULT = [ "Midi Through" ];
+
 class PortRecord {
     static parse(deviceName) {
         if (!deviceName) {
@@ -134,8 +136,6 @@ class PortIndex {
         return result;
     }
 }
-
-const PORT_INDEX = new PortIndex();
 
 const byteToStringTypeMap = {
     // basic
@@ -544,11 +544,14 @@ class Device {
     }
 
     // TODO: Move this to a static method
-    get portMap() {
+    portMap(ignored = []) {
         let result = {};
         if (this._device.getPortCount()) {
             for (let i = 0; i < this._device.getPortCount(); i++) {
                 let port = PortRecord.parse(this._device.getPortName(i));
+                if (tools.containsValue(ignored, port.name)) {
+                    continue;
+                }
                 if (!result[port.name]) {
                     result[port.name] = [];
                 }
@@ -564,7 +567,7 @@ class Device {
         if (!names.length) {
             return {};
         }
-        let map = this.portMap;
+        let map = this.portMap();
         let result = {};
         for (let name of names) {
             if (map[name]) {
@@ -703,6 +706,20 @@ class Core {
         this._inputs = {};
         this._outputs = {};
         this._usbDetect = undefined;
+        this.ignoredDevices = IGNORE_DEVICES_DEFAULT;
+    }
+
+    get ignoredDevices() {
+        return [... this._ignoredDevices];
+    }
+
+    set ignoredDevices(devices) {
+        if (Array.isArray(devices)) {
+            this._ignoredDevices = [... devices];
+        } else if (typeof devices === 'string') {
+            this._ignoredDevices = [ devices ];
+        }
+        // todo: else?
     }
 
     get hotplug() {
@@ -825,7 +842,7 @@ class Core {
     get deviceMap() {
         // TODO: Make this static if possible
         let input = new Input();
-        let map = input.portMap;
+        let map = input.portMap(this._ignoredDevices);
         input.release();
         return map;
     }
@@ -843,14 +860,12 @@ class Core {
     }
 }
 
-const MIDI_CORE = new Core();
-
 
 module.exports = {
-    Core: MIDI_CORE,
+    Core: new Core(),
     Input: Input,
     Output: Output,
     Message: Message,
     PortRecord: PortRecord,
-    PortIndex: PORT_INDEX
+    PortIndex: new PortIndex()
 };

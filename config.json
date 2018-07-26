@@ -1,4 +1,7 @@
 {
+  "ignore": [
+    "Midi Through"
+  ],
   "devices": {
     "Tbox1": {
       "name": "Tbox 2X2",
