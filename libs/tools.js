@@ -130,8 +130,6 @@ module.exports = {
         let indexes = [];
         for (let i in array) {
             let item = array[i];
-            console.log(`Item: ${item}`);
-            console.log(`Item mac: ${item.mac}`);
             if (finder(item)) {
                 if (multiple) {
                     indexes.push(i);

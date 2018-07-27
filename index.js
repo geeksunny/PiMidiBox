@@ -62,6 +62,9 @@ if (argv.configure) {
 } else if (argv.monitor) {
     let { Monitor } = require('./libs/midi/utils');
     let m = new Monitor();
+    m.handler = (device, message) => {
+        logger.debug(`Device: ${device.name} | Channel: ${message.channel} | Controller: ${message.controller} | Value: ${message.value}`);
+    };
 } else {
     const Router = require('./libs/midi/router');
     const midiRouter = new Router.Router();

@@ -137,7 +137,7 @@ class PortIndex {
     }
 }
 
-const byteToStringTypeMap = {
+const byteToStringTypeMap = Object.freeze({
     // basic
     0x08: 'noteoff',
     0x09: 'noteon',
@@ -158,10 +158,10 @@ const byteToStringTypeMap = {
     0xFB: 'continue',
     0xFC: 'stop',
     0xFF: 'reset'
-};
+});
 
-const stringToByteTypeMap = {
-    basic: {
+const stringToByteTypeMap = Object.freeze({
+    basic: Object.freeze({
         'noteoff': 0x08,
         'noteon': 0x09,
         'poly aftertouch': 0x0A,
@@ -169,8 +169,8 @@ const stringToByteTypeMap = {
         'program': 0x0C,
         'channel aftertouch': 0x0D,
         'pitch': 0x0E
-    },
-    extended: {
+    }),
+    extended: Object.freeze({
         'sysex': 0xF0,
         'mtc': 0xF1,
         'position': 0xF2,
@@ -182,13 +182,13 @@ const stringToByteTypeMap = {
         'continue': 0xFB,
         'stop': 0xFC,
         'reset': 0xFF
-    }
-};
+    })
+});
 
 const SYSEX_START = 0xF0;
 const SYSEX_END = 0xF7;
 
-const noteStrings = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const noteStrings = Object.freeze(['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']);
 
 class Message {
     static fromProperties(type, properties) {
