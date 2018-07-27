@@ -336,6 +336,9 @@ class Configuration extends ConfigRecord {
                     case Filter.VelocityFilter:
                         key = "velocity";
                         break;
+                    case Filter.TransposeFilter:
+                        key = "transpose";
+                        break;
                     case Filter.ChordFilter:
                         key = "chord";
                         break;
@@ -366,6 +369,7 @@ class Configuration extends ConfigRecord {
             let review = [
                 { type: Filter.ChannelFilter, key: "channels" },
                 { type: Filter.VelocityFilter, key: "velocity" },
+                { type: Filter.TransposeFilter, key: "transpose" },
                 { type: Filter.ChordFilter, key: "chord" }
             ];
             for (let { type, key } of review) {
