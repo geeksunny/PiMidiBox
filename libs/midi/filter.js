@@ -257,20 +257,12 @@ class MessageTypeFilter extends Filter {
     static _makeList(... types) {
         let result = [];
         for (let type of types) {
-            switch (typeof type) {
-                case 'number':
-                    if (type in Message.byteToStringTypeMap) {
-                        result.push(type);
-                    } // TODO: else, throw/warn?
-                    break;
-                case 'string':
-                    if (type in Message.stringToByteTypeMap.basic) {
-                        result.push(Message.stringToByteTypeMap.basic[type]);
-                    } else if (type in Message.stringToByteTypeMap.extended) {
-                        result.push(Message.stringToByteTypeMap.extended[type]);
-                    } // TODO: else, throw/warn?
-                    break;
+            if (typeof type === 'string') {
+                type = Message.typeFromString(type);
             }
+            if (Message.isTypeValid(type)) {
+                result.push(type);
+            } // TODO: else, throw/warn?
         }
         return result;
     }

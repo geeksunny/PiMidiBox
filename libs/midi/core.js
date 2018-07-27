@@ -223,12 +223,23 @@ class Message {
         return result;
     }
 
-    static get byteToStringTypeMap() {
-        return byteToStringTypeMap;
+    static isTypeValid(type) {
+        if (typeof type === 'string') {
+            type = Message.typeFromString(type);
+        }
+        return (type in byteToStringTypeMap);
     }
 
-    static get stringToByteTypeMap() {
-        return stringToByteTypeMap;
+    static typeFromString(typeString) {
+        if (typeof typeString === 'number') {
+            return (Message.isTypeValid(typeString)) ? typeString : -1;
+        } else if (typeString in stringToByteTypeMap.basic) {
+            return stringToByteTypeMap.basic[typeString];
+        } else if (typeString in stringToByteTypeMap.extended) {
+            return stringToByteTypeMap.extended[typeString];
+        } else {
+            return -1;
+        }
     }
 
     constructor(bytes = [0, 0, 0], additionalProperties = {}) {
