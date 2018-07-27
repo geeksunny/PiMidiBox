@@ -3,6 +3,25 @@ const tools = require('../tools');
 const { Message } = require('./core');
 
 /**
+ * @callback adjustHandler
+ * @param {Message} message - The MIDI message that triggered this handler.
+ */
+
+/**
+ * Defines a dictionary created by the {Filter} class for use in configuring Filter using {Adjuster}.
+ * @typedef {Object<string, adjustHandler>} AdjustHandlers
+ */
+
+/**
+ * @typedef {Object} Adjuster
+ * @property {string} name - The name of this adjuster, for configuration purposes.
+ * @property {number|string} type - The MIDI message type to match with.
+ * @property {number} channel - The channel to match to match with.
+ * @property {Object<string, number>} properties - Properties of a {Message} to match to trigger this adjuster.
+ * @property {adjustHandler} handler -
+ */
+
+/**
  * Interface for filters processing received MIDI messages.
  *
  * @interface
@@ -10,15 +29,86 @@ const { Message } = require('./core');
 class Filter {
     constructor() {
         this._paused = false;
-        this._bindings = {};
+        this._adjustHandlerMap = this._adjusters();
+        this._adjusterMap = {};
     }
 
-    bind(name, type, properties, handler) {
-        this._bindings[type] = { name, properties, handler };
+    // noinspection JSMethodCanBeStatic
+    /**
+     * To add adjustment capability, override this method and return an {AdjustHandlers} object.
+     * @returns {AdjustHandlers}
+     * @private
+     */
+    _adjustHandlers() {
+        return {};
     }
 
-    unbind(type) {
-        delete this._bindings[type];
+    /**
+     *
+     * @returns {AdjustHandlers}
+     * @private
+     */
+    _adjusters() {
+        let handlers = {
+            toggle: (message) => {
+                // TODO: adjust value based on message
+            }
+        };
+        let _handlers = this._adjustHandlers();
+        return (_handlers) ? tools.combine(handlers, _handlers) : handlers;
+    }
+
+    get adjusters() {
+        let result = {};
+        for (let name in this._adjustHandlerMap) {
+            result[name] = undefined;
+        }
+        for (let { 0: type, 1: adjusters } of Object.entries(this._adjusterMap)) {
+            for (let adjuster of adjusters) {
+                result[adjuster.name] = {
+                    name: adjuster.name,
+                    type: type,
+                    channel: adjuster.channel,
+                    properties: adjuster.properties
+                };
+            }
+        }
+        return result;
+    }
+
+    set adjusters(adjusters) {
+        tools.forEach(adjusters, (adjuster, name) => {
+            if (!adjuster) {
+                // TODO: Clean up variable names here to be more specific.
+                outerLoop:
+                for (let { 0: type, 1: _adjusters } of Object.entries(this._adjusterMap)) {
+                    for (let { 0: key, 1: _adjuster } of Object.entries(_adjusters)) {
+                        if (_adjuster.name === name) {
+                            tools.removeIndex(key, _adjusters);
+                            if (!_adjusters.length) {
+                                delete this._adjusterMap[type];
+                            }
+                            break outerLoop;
+                        }
+                    }
+                }
+            } else if (this._adjustHandlerMap[name]) {
+                let { type, channel, properties } = adjuster;
+                if (!tools.areDefined(type, channel, properties)) {
+                    throw "Adjuster configuration requires values for `type`, `channel`, and `properties`!";
+                } else if (!Object.keys(properties).length) {
+                    throw "Adjuster configuration requires at least one key-value pair in the `properties` object!";
+                } else {
+                    if (typeof type === 'string') {
+                        type = Message.typeFromString(type);
+                    }
+                    if (!this._adjusterMap[type]) {
+                        this._adjusterMap[type] = [];
+                    }
+                    this._adjusterMap[type].push({ name, channel, properties, handler: this._adjustHandlerMap });
+                }
+            }
+        });
     }
 
     pause() {
@@ -41,18 +131,23 @@ class Filter {
         return this._paused;
     }
 
-    _processBindings(message) {
-        let binding = this._bindings[message.type];
-        if (binding) {
-            let { name, properties, handler } = binding;
-            for (let key in properties) {
-                if (message[key] !== properties[key]) {
-                    return false;
+    _processAdjusters(message) {
+        let type = message.type;
+        if (this._adjusterMap[type]) {
+            for (let { name, properties, handler } of this._adjusterMap[type]) {
+                let match = true;
+                for (let key in properties) {
+                    if (message[key] !== properties[key]) {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) {
+                    logger.debug(`${this.constructor.name} process handled by mapped action '${name}'.`);
+                    handler(message);
+                    return true;
                 }
             }
-            logger.debug(`${this.constructor.name} process handled by mapped action '${name}'.`);
-            handler(message);
-            return true;
         }
         return false;
     }
@@ -60,7 +155,7 @@ class Filter {
     process(message) {
         if (this._paused) {
             return message;
-        } else if (this._processBindings(message)) {
+        } else if (this._processAdjusters(message)) {
             return false;
         } else {
             return this._process(message);
@@ -78,10 +173,22 @@ class Filter {
     }
 
     /**
+     * Must override and return an object representing the current settings of the filter.
+     */
+    _settings() {
+        throw "Not implemented!";
+    }
+
+    /**
      * Returns an object representing the current settings of the filter.
      */
     get settings() {
-        throw "Not implemented!";
+        let settings = this._settings();
+        if (!settings) {
+            settings = {};
+        }
+        settings.adjusters = this.adjusters;
+        return settings;
     }
 }
 
@@ -148,7 +255,7 @@ class ChannelFilter extends Filter {
         return message;
     }
 
-    get settings() {
+    _settings() {
         let settings = {};
         if (!!this._whitelist.length) {
             settings.whitelist = this._whitelist;
@@ -233,7 +340,7 @@ class ChordFilter extends Filter {
         return result;
     }
 
-    get settings() {
+    _settings() {
         return {
             chord: this._chord
         };
@@ -285,7 +392,7 @@ class MessageTypeFilter extends Filter {
         }
     }
 
-    get settings() {
+    _settings() {
         let settings = {};
         if (!!this._whitelist.length) {
             settings.whitelist = this._whitelist;
@@ -321,7 +428,7 @@ class TransposeFilter extends Filter {
         return message;
     }
 
-    get settings() {
+    _settings() {
         return {
             step: this._step
         };
@@ -395,7 +502,7 @@ class VelocityFilter extends Filter {
         return message;
     }
 
-    get settings() {
+    _settings() {
         return {
             min: this._min,
             max: this._max,

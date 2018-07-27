@@ -107,8 +107,18 @@ module.exports = {
         return value !== Object(value);
     },
 
-    hasValue(obj) {
-        return typeof obj !== 'undefined' && obj !== null;
+    /**
+     * Tests all passed objects to determine they are not undefined or null.
+     * @param {Object[]} objects
+     * @returns {boolean} true if all objects are considered defined.
+     */
+    areDefined(... objects) {
+        for (let obj of objects) {
+            if (obj === undefined || obj === null) {
+                return false;
+            }
+        }
+        return true;
     },
 
     removeIndex(index, array) {
@@ -196,14 +206,11 @@ module.exports = {
     forEach(data, callback) {
         // TODO: implement `thisArg`, Optional third argument
         //  Value to use as this (i.e the reference Object) when executing callback.
-        // TODO: deal with the case of null data?
         if (data instanceof Array) {
             data.forEach(callback);
-        } else {
-            let keys;
-            for (let i in keys = Object.getOwnPropertyNames(data)) {
-                let key = keys[i];
-                callback(data[key], key, data);
+        } else if (data) {
+            for (let entry of Object.entries(data)) {
+                callback(entry[1], entry[0], data);
             }
         }
     },
