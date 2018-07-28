@@ -77,7 +77,7 @@ class Filter {
     }
 
     set adjusters(adjusters) {
-        tools.forEach(adjusters, (adjuster, name) => {
+        for (let { 0: name, 1: adjuster } of Object.entries(adjusters)) {
             if (!adjuster) {
                 // TODO: Clean up variable names here to be more specific.
                 outerLoop:
@@ -108,7 +108,7 @@ class Filter {
                     this._adjusterMap[type].push({ name, channel, properties, handler: this._adjustHandlerMap });
                 }
             }
-        });
+        }
     }
 
     pause() {

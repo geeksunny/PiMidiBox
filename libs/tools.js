@@ -38,15 +38,10 @@ module.exports = {
      * @returns {wrapper} - An object with a `.cancel()` function for stopping your interval.
      */
     accurateInterval(func, delay, queued = true, ... params) {
-        let time = () => {
-            let t = process.hrtime();
-            // return Math.round((t[0] * 1e3) + (t[1] * 1e-6));
-            return Math.round((t[0] * 1000) + (t[1] / 1000000));
-        };
-        let nextAt = time();
+        let nextAt = this.now();
         let wrapper = (... params) => {
             nextAt += delay;
-            wrapper.timeout = setTimeout(wrapper, nextAt - time(), ... params);
+            wrapper.timeout = setTimeout(wrapper, nextAt - this.now(), ... params);
             func(... params);
         };
         wrapper.cancel = () => {
@@ -64,7 +59,7 @@ module.exports = {
         });
         if (queued) {
             nextAt += delay;
-            wrapper.timeout = setTimeout(wrapper, nextAt - time(), ... params);
+            wrapper.timeout = setTimeout(wrapper, nextAt - this.now(), ... params);
         } else {
             setImmediate(wrapper, ... params);
         }
