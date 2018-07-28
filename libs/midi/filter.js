@@ -51,7 +51,7 @@ class Filter {
     _adjusters() {
         let handlers = {
             toggle: (message) => {
-                // TODO: adjust value based on message
+                this.toggle();
             }
         };
         let _handlers = this._adjustHandlers();
@@ -270,7 +270,8 @@ class ChannelFilter extends Filter {
     }
 }
 
-const Chord = {
+const Chord = Object.freeze({
+    "DISABLED": [],
     "MAJOR3": [0, 4, 7],    // Major, 3 notes
     "MINOR3": [0, 3, 7],    // Minor, 3 notes
     "MAJOR3_LO": [-5, 0, 4],
@@ -297,7 +298,9 @@ const Chord = {
     "POWER3": [0, 7, 12],
     "OCTAVE2": [0, 12],
     "OCTAVE3": [0, 12, 24]
-};
+});
+const Chords = Object.freeze(Object.keys(Chord));
+const ChordSteps = 127 / Chords.length;
 
 class ChordFilter extends Filter {
     /**
@@ -318,8 +321,21 @@ class ChordFilter extends Filter {
         this.chord = chord;
     }
 
+    _adjustHandlers() {
+        return {
+            chord: (message) => {
+                this.chord = Math.trunc(message.value / ChordSteps);
+            }
+        };
+    }
+
     set chord(chord) {
-        if (!Chord[chord]) {
+        if (typeof chord === "number") {
+            chord = Chords[chord];
+        }
+        if (this._chord === chord) {
+            return;
+        } else if (!Chord[chord]) {
             throw "Unsupported value for `chord`.";
         }
         this._chord = chord;
@@ -415,6 +431,15 @@ class TransposeFilter extends Filter {
         this.step = step;
     }
 
+    _adjustHandlers() {
+        return {
+            step: (message) => {
+                // Takes the value of `message.value` [0-127] and scales it across -10 / +10
+                this.step = Math.round(message.value / 6.35) - 10;
+            }
+        };
+    }
+
     set step(value) {
         if (value > 10 || value < -10) {
             throw "Value of `step` must be between -10/+10";
@@ -458,6 +483,23 @@ class VelocityFilter extends Filter {
         this.min = min;
         this.max = max;
         this.mode = mode;
+    }
+
+    _adjustHandlers() {
+        return {
+            min: (message) => {
+                // TODO: Adjust the current value of this.min based on a value calculated with message.value.
+                throw "Stubbed!";
+            },
+            max: (message) => {
+                // TODO: Adjust the current value of this.max based on a value calculated with message.value.
+                throw "Stubbed!";
+            },
+            mode: (message) => {
+                // TODO: Adjust the current value of this.mode based on a value calculated with message.value.
+                throw "Stubbed!";
+            }
+        };
     }
 
     set mode(mode) {
