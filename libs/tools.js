@@ -161,19 +161,35 @@ module.exports = {
         }
     },
 
-    combine(...objects) {
-        let isArray = (objects[0] instanceof Array);
-        let combined = (isArray) ? [] : {};
-        this.forEach(objects, (object, key) => {
-            this.forEach(object, (child, childKey) => {
-                if (isArray) {
-                    combined.push(child);
+    /**
+     * Combine two or more objects into a single new object. The resulting object will match the
+     * type of the first argument passed. When combining non-array objects into an array, the Object's
+     * values will be added as an array consisting of [key, value].
+     * @param objects
+     * @returns {Array|Object} The resulting combined object. Type will match the first argument passed.
+     */
+    combine(... objects) {
+        let result;
+        if (Array.isArray(objects[0])) {
+            result = [ ... objects.shift() ];
+            for (let object of objects) {
+                result.push(... (Array.isArray(object)) ? object : Object.entries(object));
+            }
+        } else {
+            let i = 0;
+            for (let object of objects) {
+                if (Array.isArray(object)) {
+                    for (let item of object) {
+                        result[i++] = item;
+                    }
                 } else {
-                    combined[childKey] = child;
+                    for (let entry of Object.entries(object)) {
+                        result[entry[0]] = entry[1];
+                    }
                 }
-            });
-        });
-        return combined;
+            }
+        }
+        return result;
     },
 
     recursiveCombine(...objects) {
