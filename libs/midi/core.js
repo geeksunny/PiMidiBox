@@ -595,6 +595,7 @@ class Input extends Device {
         this._listenSysex = false;
         this._listenClock = false;
         this._listenActiveSense = false;
+        this._messageHandlers = [];
     }
 
     _create() {
@@ -602,44 +603,39 @@ class Input extends Device {
     }
 
     _onOpen() {
-        if (this._bindings) {
-            for (let callback of this._bindings) {
-                this._device.on('message', callback);
+        // TODO: Should this binding be delayed until explicitly requested? (when first binding is added)
+        this._device.on('message', (deltaTime, msg) => {
+            let message = new Message(msg, { deltaTime });
+            // todo: THIS MIGHT CRASH!!! this device might emit message before the constructor fully finishes.
+            for (let handler of this._messageHandlers) {
+                if (handler(this, message)) {
+                    logger.debug('Message chain handled early.');
+                    break;
+                }
             }
-            delete this._bindings;
-        }
+        });
         this._setupListenTypes(false);
-    }
-
-    _onClose() {
-        let bindings = this._device.listeners('message');
-        if (!!bindings.length) {
-            this._bindings = bindings;
-        }
     }
 
     _cleanup() {
         this.unbindAll();
     }
 
-    bind(onMessage) {
-        if (this._device) {
-            this._device.on('message', (deltaTime, msg) => {
-                onMessage(this, new Message(msg, { deltaTime }));
-            });
+    bind(onMessage, highPriorty = false) {
+        // TODO: Add message-type filtering at this level?
+        if (highPriorty) {
+            this._messageHandlers.unshift(onMessage);
+        } else {
+            this._messageHandlers.push(onMessage);
         }
     }
 
     unbind(onMessage) {
-        if (this._device) {
-            this._device.removeListener('message', onMessage);
-        }
+        tools.removeFromArray(onMessage, this._messageHandlers);
     }
 
     unbindAll() {
-        if (this._device) {
-            this._device.removeAllListeners('message');
-        }
+        this._messageHandlers = [];
     }
 
     get listenFlags() {
