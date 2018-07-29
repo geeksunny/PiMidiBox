@@ -13,13 +13,158 @@ const { Message } = require('./core');
  */
 
 /**
- * @typedef {Object} Adjuster
- * @property {string} name - The name of this adjuster, for configuration purposes.
- * @property {number|string} type - The MIDI message type to match with.
- * @property {number} channel - The channel to match to match with.
- * @property {Object<string, number>} properties - Properties of a {Message} to match to trigger this adjuster.
- * @property {adjustHandler} handler -
+ * Callback to handle the value parsed by an {Adjuster}.
+ *
+ * @callback adjusterValueHandler
+ * @param {Object<string, number>} value - The value parsed to match the {Adjuster}'s `valueMap`.
  */
+
+class Adjuster {
+    /**
+     * @param {Object} opts - An object defining the properties to build this Adjuster with.
+     * @param {string} opts.name - The name of this adjuster, for configuration purposes.
+     * @param {string} opts.description - A description of what this adjuster accomplishes.
+     * @param {adjusterValueHandler} opts.handler - Adjuster callback that takes the message's value.
+     * @param {boolean} [opts.potPickup=true] - Enable pot-pickup mode when adjusting values.
+     * @param {Object<string, number>} opts.triggerMap - An object defining message properties and their
+     * values required to trigger this Adjuster.
+     * @param {string|number} opts.type - The message type required to trigger this Adjuster.
+     * @param {String[]} opts.userMapping - An array of strings defining the potential mapping properties
+     * that are user configurable.
+     * @param {String[]} [opts.valueMap=[]] - An array of strings defining the message properties that will
+     * be passed into `opts.handler`.
+     */
+    constructor({ name, description, handler, potPickup = true, triggerMap, type, userMapping, valueMap = {} }) {
+        // TODO: Refactor for potential of multiple type/property+handler pairings per adjuster
+        this.handler = handler;
+        this.name = name;
+        this.description = description;
+        this.type = type;
+        this.triggerMap = triggerMap;
+        this.potPickup = potPickup;
+        this.userMapping = userMapping; // todo: rename // todo: 'channel' built in required value
+        this.valueMap = valueMap;   // todo: rename
+        this._value = {};
+    }
+
+    process(message) {
+        // todo: return true if matches and an action has been performed.
+        return false;
+    }
+
+    get description() {
+        return this._description;
+    }
+
+    set description(description) {
+        if (description) {
+            this._description = description;
+        }
+    }
+
+    get handler() {
+        return this._handler;
+    }
+
+    set handler(adjustHandler) {
+        if (typeof adjustHandler !== 'function') {
+            throw new TypeError('Handler must be a callable function!');
+        }
+        this._handler = adjustHandler;
+    }
+
+    get name() {
+        return this._name;
+    }
+
+    set name(name) {
+        if (name) {
+            this._name = name;
+        }
+    }
+
+    get potPickup() {
+        return this._potPickup;
+    }
+
+    set potPickup(enabled) {
+        if (typeof enabled !== 'boolean') {
+            throw new TypeError('Boolean value required.');
+        }
+        this._potPickup = enabled;
+    }
+
+    get triggerMap() {
+        return this._triggerMap;
+    }
+
+    set triggerMap(map) {
+        if (!map || !Object.keys(map).length) {
+            throw new TypeError('Trigger map must be an object with at least one key and value.');
+        }
+        this._triggerMap = Object.assign({}, map);
+    }
+
+    get type() {
+        return this._type;
+    }
+
+    set type(type) {
+        if (typeof type === 'string') {
+            type = Message.typeFromString(type);
+        }
+        if (Message.isTypeValid(type)) {
+            this._type = type;
+        } else {
+            throw "Invalid message type provided!";
+        }
+    }
+
+    get userMapping() {
+        return this._userMap;
+    }
+
+    set userMapping(map) {
+        if (map) {
+            // todo: any validation required?
+            this._userMap = Object.assign({}, map);
+        }
+    }
+
+    get value() {
+        return this._value;
+    }
+
+    set value(value) {
+        if (value) {
+            this._value = value;
+        }
+    }
+
+    get valueMap() {
+        return this._valueMap;
+    }
+
+    set valueMap(map) {
+        // todo: refactor for array of strings instead of object.
+        if (map) {
+            this._valueMap = Object.assign({}, map);
+            if (Object.keys(this._valueMap).length !== 0) {
+                this._valueHandler = (value) => {
+                    if (this._potPickup) {
+                        // todo: potPickup logic
+                    } else {
+                        // todo
+                    }
+                };
+                return;
+            }
+        }
+        this._valueHandler = () => {
+            return {};//todo: return false?
+        };
+    }
+}
 
 /**
  * Interface for filters processing received MIDI messages.
@@ -49,6 +194,7 @@ class Filter {
      * @private
      */
     _adjusters() {
+        // TODO: Refactor into defined Adjuster objects
         let handlers = {
             toggle: (message) => {
                 this.toggle();
@@ -322,6 +468,7 @@ class ChordFilter extends Filter {
     }
 
     _adjustHandlers() {
+        // TODO: Refactor into defined Adjuster objects
         return {
             chord: (message) => {
                 this.chord = Math.trunc(message.value / ChordSteps);
@@ -432,6 +579,7 @@ class TransposeFilter extends Filter {
     }
 
     _adjustHandlers() {
+        // TODO: Refactor into defined Adjuster objects
         return {
             step: (message) => {
                 // Takes the value of `message.value` [0-127] and scales it across -10 / +10
@@ -486,6 +634,7 @@ class VelocityFilter extends Filter {
     }
 
     _adjustHandlers() {
+        // TODO: Refactor into defined Adjuster objects
         return {
             min: (message) => {
                 // TODO: Adjust the current value of this.min based on a value calculated with message.value.
