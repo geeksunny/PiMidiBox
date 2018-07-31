@@ -1,3 +1,7 @@
+Symbol.prototype.asString = function() {
+    return /Symbol\((.+)\)/.exec(this.toString())[1];
+};
+
 module.exports = {
 
     /**
@@ -25,45 +29,6 @@ module.exports = {
     now() {
         let now = process.hrtime();
         return (+now[0] * 1e9) + (+now[1]);
-    },
-
-    /**
-     * A more accurate version of setInterval's functionality. Uses `process.hrtime()`
-     * to account for clock drift.
-     * @param {Function} func - Callback to be executed upon each tick.
-     * @param {Number} delay - Interval delay in milliseconds.
-     * @param {boolean} [queued] - If true, the first tick won't execute until after the initial delay.
-     * Set to false to execute your callback immediately upon calling. Defaults to true.
-     * @param {... Object} [params]
-     * @returns {wrapper} - An object with a `.cancel()` function for stopping your interval.
-     */
-    accurateInterval(func, delay, queued = true, ... params) {
-        let nextAt = this.now();
-        let wrapper = (... params) => {
-            nextAt += delay;
-            wrapper.timeout = setTimeout(wrapper, nextAt - this.now(), ... params);
-            func(... params);
-        };
-        wrapper.cancel = () => {
-            clearTimeout(wrapper.timeout);
-        };
-        Object.defineProperty(wrapper, 'delay', {
-            get: () => {
-                return delay;
-            },
-            set: (value) => {
-                delay = value;
-            },
-            enumerable: false,
-            configurable: true
-        });
-        if (queued) {
-            nextAt += delay;
-            wrapper.timeout = setTimeout(wrapper, nextAt - this.now(), ... params);
-        } else {
-            setImmediate(wrapper, ... params);
-        }
-        return wrapper;
     },
 
     isEmpty(obj) {

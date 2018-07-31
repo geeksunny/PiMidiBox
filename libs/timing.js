@@ -1,4 +1,4 @@
-const { enum: _enum } = require('tools');
+const { enum: _enum } = require('./tools');
 
 const Resolution = _enum('HOUR', 'MICROSECOND', 'MILLISECOND', 'MINUTE', 'NANOSECOND', 'SECOND');
 
@@ -63,17 +63,17 @@ class TimeUnit {
     get value() {
         switch (this.resolution) {
             case Resolution.HOUR:
-                return this.hour;
+                return this.hours;
             case Resolution.MICROSECOND:
-                return this.microsecond;
+                return this.microseconds;
             case Resolution.MILLISECOND:
-                return this.millisecond;
+                return this.milliseconds;
             case Resolution.MINUTE:
-                return this.minute;
+                return this.minutes;
             case Resolution.NANOSECOND:
-                return this.nanosecond;
+                return this.nanoseconds;
             case Resolution.SECOND:
-                return this.second;
+                return this.seconds;
             default:
                 return this._value;
         }
@@ -82,102 +82,101 @@ class TimeUnit {
     set value(value) {
         switch (this.resolution) {
             case Resolution.HOUR:
-                this.hour = value;
+                this.hours = value;
                 break;
             case Resolution.MICROSECOND:
-                this.microsecond = value;
+                this.microseconds = value;
                 break;
             case Resolution.MILLISECOND:
-                this.millisecond = value;
+                this.milliseconds = value;
                 break;
             case Resolution.MINUTE:
-                this.minute = value;
+                this.minutes = value;
                 break;
             case Resolution.NANOSECOND:
                 this.nanoseconds = value;
                 break;
             case Resolution.SECOND:
-                this.second = value;
+                this.seconds = value;
                 break;
         }
     }
 
-    get hour() {
+    get hours() {
         let value = this._value / 3.6000E+12;
         return (this._rounding) ? Math.round(value) : value;
     }
 
-    set hour(hours) {
+    set hours(hours) {
         this._value = hours * 3.6000E+12;
     }
 
-    get microsecond() {
+    get microseconds() {
         let value = this._value / 1000;
         return (this._rounding) ? Math.round(value) : value;
     }
 
-    set microsecond(microseconds) {
+    set microseconds(microseconds) {
         this._value = microseconds * 1000;
     }
 
-    get millisecond() {
+    get milliseconds() {
         let value = this._value / 1000000;
         return (this._rounding) ? Math.round(value) : value;
     }
 
-    set millisecond(milliseconds) {
+    set milliseconds(milliseconds) {
         this._value = milliseconds * 1000000;
     }
 
-    get minute() {
+    get minutes() {
         let value = this._value / 6.0000E+10;
         return (this._rounding) ? Math.round(value) : value;
     }
 
-    set minute(minutes) {
+    set minutes(minutes) {
         this._value = minutes * 6.0000E+10;
     }
 
-    get nanosecond() {
+    get nanoseconds() {
         let value = this._value;
         return (this._rounding) ? Math.round(value) : value;
     }
 
-    set nanosecond(nanoseconds) {
+    set nanoseconds(nanoseconds) {
         this._value = nanoseconds;
     }
 
-    get second() {
+    get seconds() {
         let value = this._value / 1.0000E+9;
         return (this._rounding) ? Math.round(value) : value;
     }
 
-    set second(seconds) {
+    set seconds(seconds) {
         this._value = seconds * 1.0000E+9;
     }
 }
 
-const now = (resolution = Resolution.MILLISECOND, rounded = true) => {
-    let t = process.hrtime();
+const now = function(resolution = Resolution.MILLISECOND, rounded = true) {
     let value;
     switch (resolution) {
-        case Resolution.HOUR:
-            value = (t[0] + t[1]) / 60 / 60;
+        case Resolution.NANOSECOND:
+            value = this.nanoseconds();
             break;
         case Resolution.MICROSECOND:
-            value = (t[0] * 1e6) + (t[1] / 0.001);
+            value = this.microseconds();
             break;
         case Resolution.MILLISECOND:
-            value = (t[0] * 1000) + (t[1] / 1000000);
-            break;
-        case Resolution.MINUTE:
-            value = (t[0] + t[1]) / 60;
-            break;
-        case Resolution.NANOSECOND:
-            value = (t[0] * 1e9) + t[1];
+            value = this.milliseconds();
             break;
         case Resolution.SECOND:
-            value = t[0] + t[1];
+            value = this.seconds();
+            break;
+        case Resolution.MINUTE:
+            value = this.minutes();
+            break;
+        case Resolution.HOUR:
+            value = this.hours();
             break;
         default:
             throw new TypeError('Resolution must be a value from `Resolution`');
@@ -185,4 +184,93 @@ const now = (resolution = Resolution.MILLISECOND, rounded = true) => {
     return (rounded) ? Math.round(value) : value;
 };
 
-module.exports = { now, Resolution, TimeUnit };
+now.nanoseconds = () => {
+    let t = process.hrtime();
+    return (t[0] * 1e9) + t[1];
+};
+
+now.microseconds = () => {
+    let t = process.hrtime();
+    return (t[0] * 1e6) + (t[1] / 0.001);
+};
+
+now.milliseconds = () => {
+    let t = process.hrtime();
+    return (t[0] * 1000) + (t[1] / 1000000);
+};
+
+now.seconds = () => {
+    let t = process.hrtime();
+    return t[0] + t[1];
+};
+
+now.minutes  = () => {
+    let t = process.hrtime();
+    return (t[0] + t[1]) / 60;
+};
+
+now.hours = () => {
+    let t = process.hrtime();
+    return (t[0] + t[1]) / 60 / 60;
+};
+
+/**
+ * A more accurate version of setInterval's functionality. Uses `process.hrtime()`
+ * to account for clock drift.
+ * @param {Function} func - Callback to be executed upon each tick.
+ * @param {TimeUnit|Number} delay - Interval delay as a {TimeUnit} object defining the duration and it's resolution.
+ * Alternatively, passing a {Number} will be handled as {Resolution.MILLISECOND}.
+ * @param {boolean} [queued] - If true, the first tick won't execute until after the initial delay.
+ * Set to false to execute your callback immediately upon calling. Defaults to true.
+ * @param {... Object} [params]
+ * @returns {wrapper} - An object with a `.cancel()` function for stopping your interval.
+ */
+const accurateInterval = (func, delay, queued = true, ... params) => {
+    // Delay type correction and validation
+    if (typeof delay === 'string') {
+        delay = parseInt(delay);
+    }
+    if (typeof delay === 'number') {
+        delay = new TimeUnit(delay, Resolution.MILLISECOND);
+    }
+    if (!(delay instanceof TimeUnit)) {
+        throw new TypeError(`Invalid delay provided. (${delay})`);
+    }
+    // Delay value validation
+    let _delay = Math.abs(delay.nanoseconds);
+    if (_delay === 0) {
+        throw 'Interval delay must be non-zero!';
+    }
+    // Create the interval wrapper
+    let _now = now.nanoseconds;
+    let nextAt = _now();
+    let wrapper = (... params) => {
+        nextAt += _delay;
+        wrapper.timeout = setTimeout(wrapper, nextAt - _now(), ... params);
+        func(... params);
+    };
+    wrapper.cancel = () => {
+        clearTimeout(wrapper.timeout);
+    };
+    Object.defineProperty(wrapper, 'delay', {
+        get: () => {
+            return _delay;
+        },
+        set: (value) => {
+            _delay = value;
+        },
+        enumerable: false,
+        configurable: true
+    });
+    // Start repeating task
+    if (queued) {
+        nextAt += _delay;
+        wrapper.timeout = setTimeout(wrapper, nextAt - _now(), ... params);
+    } else {
+        setImmediate(wrapper, ... params);
+    }
+    // Return the wrapper for cancellation
+    return wrapper;
+};
+
+module.exports = { accurateInterval, now, Resolution, TimeUnit };
