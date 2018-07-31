@@ -21,5 +21,9 @@
     "sleep": "file:node-sleep",
     "usb-detection": "^3.2.0",
     "yargs": "^11.1.0"
+  },
+  "optionalDependencies": {
+    "raspi": "^5.0.2",
+    "raspi-led": "^2.0.0"
   }
 }
