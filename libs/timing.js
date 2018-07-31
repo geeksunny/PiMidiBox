@@ -1,10 +1,10 @@
 const { enum: _enum } = require('./tools');
 
-const Resolution = _enum('HOUR', 'MICROSECOND', 'MILLISECOND', 'MINUTE', 'NANOSECOND', 'SECOND');
+const Resolution = _enum('NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'SECOND', 'MINUTE', 'HOUR');
 
 class TimeUnit {
-    static hours(hours) {
-        return new TimeUnit(hours, Resolution.HOUR);
+    static nanoseconds(nanoseconds) {
+        return new TimeUnit(nanoseconds, Resolution.NANOSECOND);
     }
 
     static microseconds(microseconds) {
@@ -15,22 +15,22 @@ class TimeUnit {
         return new TimeUnit(milliseconds, Resolution.MILLISECOND);
     }
 
-    static minutes(minutes) {
-        return new TimeUnit(minutes, Resolution.MINUTE);
-    }
-
-    static nanoseconds(nanoseconds) {
-        return new TimeUnit(nanoseconds, Resolution.NANOSECOND);
-    }
-
     static seconds(seconds) {
         return new TimeUnit(seconds, Resolution.SECOND);
     }
 
+    static minutes(minutes) {
+        return new TimeUnit(minutes, Resolution.MINUTE);
+    }
+
+    static hours(hours) {
+        return new TimeUnit(hours, Resolution.HOUR);
+    }
+
     constructor(value, resolution, rounding = true) {
         this.resolution = resolution;
-        this.value = value;
         this.rounding = rounding;
+        this.value = value;
     }
 
     get resolution() {
@@ -39,12 +39,12 @@ class TimeUnit {
 
     set resolution(resolution) {
         switch (resolution) {
-            case Resolution.HOUR:
+            case Resolution.NANOSECOND:
             case Resolution.MICROSECOND:
             case Resolution.MILLISECOND:
-            case Resolution.MINUTE:
-            case Resolution.NANOSECOND:
             case Resolution.SECOND:
+            case Resolution.MINUTE:
+            case Resolution.HOUR:
                 this._resolution = resolution;
                 break;
             default:
@@ -62,27 +62,33 @@ class TimeUnit {
 
     get value() {
         switch (this.resolution) {
-            case Resolution.HOUR:
-                return this.hours;
+            case Resolution.NANOSECOND:
+                return this.nanoseconds;
             case Resolution.MICROSECOND:
                 return this.microseconds;
             case Resolution.MILLISECOND:
                 return this.milliseconds;
-            case Resolution.MINUTE:
-                return this.minutes;
-            case Resolution.NANOSECOND:
-                return this.nanoseconds;
             case Resolution.SECOND:
                 return this.seconds;
+            case Resolution.MINUTE:
+                return this.minutes;
+            case Resolution.HOUR:
+                return this.hours;
             default:
                 return this._value;
         }
     }
 
     set value(value) {
+        if (typeof value === 'string') {
+            value = parseInt(value);
+        }
+        if (typeof value !== 'number') {
+            throw new TypeError(`Invalid value type provided. (${value})`);
+        }
         switch (this.resolution) {
-            case Resolution.HOUR:
-                this.hours = value;
+            case Resolution.NANOSECOND:
+                this.nanoseconds = value;
                 break;
             case Resolution.MICROSECOND:
                 this.microseconds = value;
@@ -90,52 +96,16 @@ class TimeUnit {
             case Resolution.MILLISECOND:
                 this.milliseconds = value;
                 break;
-            case Resolution.MINUTE:
-                this.minutes = value;
-                break;
-            case Resolution.NANOSECOND:
-                this.nanoseconds = value;
-                break;
             case Resolution.SECOND:
                 this.seconds = value;
                 break;
+            case Resolution.MINUTE:
+                this.minutes = value;
+                break;
+            case Resolution.HOUR:
+                this.hours = value;
+                break;
         }
-    }
-
-    get hours() {
-        let value = this._value / 3.6000E+12;
-        return (this._rounding) ? Math.round(value) : value;
-    }
-
-    set hours(hours) {
-        this._value = hours * 3.6000E+12;
-    }
-
-    get microseconds() {
-        let value = this._value / 1000;
-        return (this._rounding) ? Math.round(value) : value;
-    }
-
-    set microseconds(microseconds) {
-        this._value = microseconds * 1000;
-    }
-
-    get milliseconds() {
-        let value = this._value / 1000000;
-        return (this._rounding) ? Math.round(value) : value;
-    }
-
-    set milliseconds(milliseconds) {
-        this._value = milliseconds * 1000000;
-    }
-
-    get minutes() {
-        let value = this._value / 6.0000E+10;
-        return (this._rounding) ? Math.round(value) : value;
-    }
-
-    set minutes(minutes) {
-        this._value = minutes * 6.0000E+10;
     }
 
     get nanoseconds() {
@@ -144,7 +114,25 @@ class TimeUnit {
     }
 
     set nanoseconds(nanoseconds) {
-        this._value = nanoseconds;
+        this._value = Math.abs(nanoseconds);
+    }
+
+    get microseconds() {
+        let value = this._value / 1000;
+        return (this._rounding) ? Math.round(value) : value;
+    }
+
+    set microseconds(microseconds) {
+        this._value = Math.abs(microseconds * 1000);
+    }
+
+    get milliseconds() {
+        let value = this._value / 1000000;
+        return (this._rounding) ? Math.round(value) : value;
+    }
+
+    set milliseconds(milliseconds) {
+        this._value = Math.abs(milliseconds * 1000000);
     }
 
     get seconds() {
@@ -153,7 +141,25 @@ class TimeUnit {
     }
 
     set seconds(seconds) {
-        this._value = seconds * 1.0000E+9;
+        this._value = Math.abs(seconds * 1.0000E+9);
+    }
+
+    get minutes() {
+        let value = this._value / 6.0000E+10;
+        return (this._rounding) ? Math.round(value) : value;
+    }
+
+    set minutes(minutes) {
+        this._value = Math.abs(minutes * 6.0000E+10);
+    }
+
+    get hours() {
+        let value = this._value / 3.6000E+12;
+        return (this._rounding) ? Math.round(value) : value;
+    }
+
+    set hours(hours) {
+        this._value = Math.abs(hours * 3.6000E+12);
     }
 }
 
