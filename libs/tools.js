@@ -1,7 +1,3 @@
-Symbol.prototype.asString = function() {
-    return /Symbol\((.+)\)/.exec(this.toString())[1];
-};
-
 module.exports = {
 
     /**
@@ -202,11 +198,30 @@ module.exports = {
         }
     },
 
+    symbolName(symbol) {
+        if (typeof symbol === 'string') {
+            return symbol;
+        } else if (typeof symbol === 'symbol') {
+            let s = symbol.toString();
+            let matches = /Symbol\((.+)\)/.exec(s);
+            return (matches) ? matches[1] : s;
+        } else {
+            return undefined;
+        }
+    },
+
     enum(... names) {
         let obj = {};
         for (let name of names) {
+            if (typeof name !== 'string') {
+                throw new TypeError(`Name must be a string!`);
+            }
             obj[name] = Symbol(name);
         }
+        obj.validate = (value) => {
+            let name = this.symbolName(value);
+            return (name && name in obj);
+        };
         return Object.freeze(obj);
     }
 

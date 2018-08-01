@@ -220,50 +220,94 @@ now.hours = () => {
     return (t[0] + t[1]) / 60 / 60;
 };
 
+const pattern = (resolution, ... intervals) => {
+    if (!Resolution.validate(resolution)) {
+        throw `Invalid resolution provided. (${resolution})`;
+    }
+    let result = [];
+    for (let interval of intervals) {
+        result.push(new TimeUnit(interval, resolution));
+    }
+    return result;
+};
+
 /**
- * A more accurate version of setInterval's functionality. Uses `process.hrtime()`
- * to account for clock drift.
+ * A more accurate version of setInterval's functionality. Uses `process.hrtime()` to account for clock drift.
  * @param {Function} func - Callback to be executed upon each tick.
- * @param {TimeUnit|Number} delay - Interval delay as a {TimeUnit} object defining the duration and it's resolution.
- * Alternatively, passing a {Number} will be handled as {Resolution.MILLISECOND}.
+ * @param {TimeUnit|Number|Array<TimeUnit|Number>} delay - Interval delay as a {TimeUnit} object defining
+ * the duration and it's resolution. Alternatively, passing a {Number} will be handled as {Resolution.MILLISECOND}.
+ * Pass an array of delay values to create a repeating timed sequential pattern.
  * @param {boolean} [queued] - If true, the first tick won't execute until after the initial delay.
  * Set to false to execute your callback immediately upon calling. Defaults to true.
  * @param {... Object} [params]
  * @returns {wrapper} - An object with a `.cancel()` function for stopping your interval.
  */
 const accurateInterval = (func, delay, queued = true, ... params) => {
-    // Delay type correction and validation
-    if (typeof delay === 'string') {
-        delay = parseInt(delay);
-    }
-    if (typeof delay === 'number') {
-        delay = new TimeUnit(delay, Resolution.MILLISECOND);
-    }
-    if (!(delay instanceof TimeUnit)) {
-        throw new TypeError(`Invalid delay provided. (${delay})`);
-    }
-    // Delay value validation
-    let _delay = Math.abs(delay.nanoseconds);
-    if (_delay === 0) {
-        throw 'Interval delay must be non-zero!';
-    }
+    // Delay validation, preparation
+    let prepareDelay = (delay) => {
+        let delays = [];
+        if (!Array.isArray(delay)) {
+            delay = [ delay ];
+        }
+        for (let time of delay) {
+            // Delay type correction and validation
+            if (typeof time === 'string') {
+                time = parseInt(time);
+            }
+            if (typeof time === 'number') {
+                time = new TimeUnit(time, Resolution.MILLISECOND);
+            }
+            if (!(time instanceof TimeUnit)) {
+                throw new TypeError(`Invalid delay provided. (${time})`);
+            }
+            // Delay value validation
+            let _time = Math.abs(time.nanoseconds);
+            if (_time === 0) {
+                throw 'Interval delay must be non-zero!';
+            }
+            delays.push(_time);
+        }
+        if (!delays.length) {
+            throw 'Delay must contain at least one number!';
+        }
+        return delays;
+    };
+    // Delay set, change logic
+    let intervals, _delay;
+    let increment, i, size;
+    let updateDelay = (delay) => {
+        intervals = prepareDelay(delay);
+        _delay = intervals[0];
+        increment = intervals.length > 1;
+        if (increment) {
+            i = queued ? 1 : 0;
+            size = intervals.length;
+        }
+    };
+    updateDelay(delay);
     // Create the interval wrapper
     let _now = now.nanoseconds;
     let nextAt = _now();
-    let wrapper = (... params) => {
+    let wrapper = function(... params) {
+        if (increment) {
+            _delay = intervals[i++];
+            if (i === size) {
+                i = 0;
+            }
+        }
         nextAt += _delay;
-        wrapper.timeout = setTimeout(wrapper, nextAt - _now(), ... params);
+        wrapper.timeout = setTimeout(this, nextAt - _now(), ... params);
         func(... params);
     };
     wrapper.cancel = () => {
-        clearTimeout(wrapper.timeout);
+        clearTimeout(this.timeout);
     };
     Object.defineProperty(wrapper, 'delay', {
         get: () => {
-            return _delay;
+            return intervals.length > 1 ? intervals : intervals[0];
         },
         set: (value) => {
-            _delay = value;
+            updateDelay(value);
         },
         enumerable: false,
         configurable: true
@@ -279,4 +323,4 @@ const accurateInterval = (func, delay, queued = true, ... params) => {
     return wrapper;
 };
 
-module.exports = { accurateInterval, now, Resolution, TimeUnit };
+module.exports = { accurateInterval, now, pattern, Resolution, TimeUnit };
