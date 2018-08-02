@@ -88,13 +88,132 @@ class Blinker extends EventEmitter {
     }
 }
 
-class RasPiStatusLED {
+class LED extends EventEmitter {
     constructor() {
+        super();
+        this._ready = false;
         this._active = false;
+        this._blinker = undefined;
+    }
+
+    _ready() {
+        if (!this._ready) {
+            this._ready = true;
+            this.refresh();
+            this.emit('ready');
+        }
+    }
+
+    /**
+     * Read the active state from the LED.
+     * @returns {boolean} - True if LED is lit.
+     * @private
+     */
+    _read() {
+        throw "Not implemented!";
+    }
+
+    _setup() {
+        throw "Not implemented!";
+    }
+
+    _turnOff() {
+        throw "Not implemented!";
+    }
+
+    _turnOn() {
+        throw "Not implemented!";
+    }
+
+    refresh() {
+        if (this._ready) {
+            this._active = this._read();
+        }
+    }
+
+    blink(durationOn, durationOff = 0) {
+        // TODO: cycles argument & logic
+        if (!this._ready || !this._blinker) {
+            return;
+        }
+        if (!durationOff) {
+            this.blinkPattern(durationOn);
+        } else {
+            this.blinkPattern(durationOn, durationOff);
+        }
+    }
+
+    blinkPattern(... durations) {
+        // TODO: cycles argument & logic
+        if (this._ready) {
+            let blinker = this.blinker;
+            if (blinker) {
+                blinker.start(... durations);
+            }
+        }
+    }
+
+    stopBlinking(turnOff = true) {
+        if (!this._ready || !this._blinker) {
+            return;
+        }
+        this._blinker.stop(turnOff);
+    }
+
+    get active() {
+        return this._active;
+    }
+
+    set active(active) {
+        if (this._ready && this._active !== active) {
+            if (active) {
+                this._active = true;
+                this._turnOn();
+            } else {
+                this._active = false;
+                this._turnOff();
+            }
+        }
+    }
+
+    get blinker() {
+        if (!this._blinker && this._ready) {
+            this._blinker = new Blinker(this);
+        }
+        return this._blinker;
+    }
+
+    get blinking() {
+        let blinker = this.blinker;
+        return (blinker && blinker.blinking);
+    }
+
+    get enabled() {
+        return this._ready;
+    }
+
+    on() {
+        if (this._ready && !this._active) {
+            this.active = true;
+        }
+    }
+
+    off() {
+        if (this._ready && this._active) {
+            this.active = false;
+        }
+    }
+
+    toggle() {
+        this._ready && (this.active = !this._active);
+    }
+}
+
+class RasPiStatusLED extends LED {
+    _setup() {
         this._led = undefined;
         this._off = undefined;
         this._on = undefined;
-        this._blinker = undefined;
         new Promise((resolve) => {
             try {
                 let raspi = require('raspi');
@@ -103,8 +222,7 @@ class RasPiStatusLED {
                     this._led = new led.LED();
                     this._on = led.ON;
                     this._off = led.OFF;
-                    this.refresh();
-                    this._blinker = new Blinker(this._led);
+                    this._ready();
                     resolve(true);
                 });
             } catch (err) {
@@ -116,80 +234,20 @@ class RasPiStatusLED {
         });
     }
 
-    refresh() {
+    _read() {
+        return (this._led && this._led.read() == this._on);
+    }
+
+    _turnOff() {
         if (this._led) {
-            // TODO: test if === will work below.
-            this._active = this._led.read() == this._on;
+            this._led.write(this._off);
         }
     }
 
-    blink(durationOn, durationOff = 0) {
-        if (!this._led || !this._blinker) {
-            return;
+    _turnOn() {
+        if (this._led) {
+            this._led.write(this._on);
         }
-        if (!durationOff) {
-            this._blinker.start(durationOn);
-        } else {
-            this._blinker.start(durationOn, durationOff);
-        }
-    }
-
-    blinkPattern(... durations) {
-        if (!this._led || !this._blinker) {
-            return;
-        }
-        this._blinker.start(... durations);
-    }
-
-    stopBlinking(turnOff = true) {
-        if (!this._led || !this._blinker) {
-            return;
-        }
-        this._blinker.stop(turnOff);
-    }
-
-    get active() {
-        return this._active;
-    }
-
-    set active(active) {
-        if (this._led && this._active !== active) {
-            if (active) {
-                this._active = true;
-                this._led.write(this._on);
-            } else {
-                this._active = false;
-                this._led.write(this._off);
-            }
-        }
-    }
-
-    get blinker() {
-        return this._blinker;
-    }
-
-    get blinking() {
-        return (this._blinker && this._blinker.blinking);
-    }
-
-    get enabled() {
-        return !!this._led;
-    }
-
-    on() {
-        if (this._led && !this._active) {
-            this.active = true;
-        }
-    }
-
-    off() {
-        if (this._led && this._active) {
-            this.active = false;
-        }
-    }
-
-    toggle() {
-        this._led && (this.active = !this._active);
     }
 }
 
