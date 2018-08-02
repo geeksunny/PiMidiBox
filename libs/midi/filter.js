@@ -27,12 +27,12 @@ class Adjuster {
      * @param {adjusterValueHandler} opts.handler - Adjuster callback that takes the message's value.
      * @param {boolean} [opts.potPickup=true] - Enable pot-pickup mode when adjusting values.
      * @param {Object<string, number>} opts.triggerMap - An object defining message properties and their
-     * values required to trigger this Adjuster.
+     *      values required to trigger this Adjuster.
      * @param {string|number} opts.type - The message type required to trigger this Adjuster.
-     * @param {String[]} opts.userMapping - An array of strings defining the potential mapping properties
-     * that are user configurable.
-     * @param {String[]} [opts.valueMap=[]] - An array of strings defining the message properties that will
-     * be passed into `opts.handler`.
+     * @param {string[]} opts.userMapping - An array of strings defining the potential mapping properties
+     *      that are user configurable.
+     * @param {string} [opts.valueKey] - An optional string defining the message property to be the
+     *      value passed into `opts.handler`.
      */
     constructor({ name, description, handler, potPickup = true, triggerMap, type, userMapping, valueMap = {} }) {
         // TODO: Refactor for potential of multiple type/property+handler pairings per adjuster
@@ -180,8 +180,8 @@ class Filter {
 
     // noinspection JSMethodCanBeStatic
     /**
-     * To add adjustment capability, override this method and return an {AdjustHandlers} object.
-     * @returns {AdjustHandlers}
+     * To add adjustment capability, override this method and return an array of {Adjuster} objects.
+     * @returns {Adjuster[]}
      * @private
      */
     _adjustHandlers() {
@@ -190,7 +190,7 @@ class Filter {
 
     /**
      *
-     * @returns {AdjustHandlers}
+     * @returns {Adjuster[]}
      * @private
      */
     _adjusters() {
@@ -342,15 +342,15 @@ class ChannelFilter extends Filter {
     /**
      * TODO: desc
      * @param {Object} opts - An object containing one or more of the parameters listed below.
-     * If both a whitelist and blacklist is provided, the blacklist will be ignored.
+     *      If both a whitelist and blacklist is provided, the blacklist will be ignored.
      * @param {Number[]} [opts.whitelist] - An array of integers representing the only channels to be listened to.
-     * Messages on all other channels will be ignored.
+     *      Messages on all other channels will be ignored.
      * @param {Number[]} [opts.blacklist] - An array of integers representing the only channels to be ignored.
-     * Messages on all other channels will be processed.
+     *      Messages on all other channels will be processed.
      * @param {Object} [opts.map] - an object mapping input channels to a different output channel.
      * @example <caption>Example of a channel mapping.</caption>
-     * // Input messages on channel 6 will be forwarded to 1, 7 to 2, 8 to 3.
-     * { "6": 1, "7": 2, "8": 3 }
+     *      // Input messages on channel 6 will be forwarded to 1, 7 to 2, 8 to 3.
+     *      { "6": 1, "7": 2, "8": 3 }
      */
     constructor({whitelist = [], blacklist = [], map = {}} = {}) {
         super();
@@ -453,11 +453,11 @@ class ChordFilter extends Filter {
      * // TODO: desc
      * @param {Object} opts - An object containing one or more of the parameters listed below.
      * @param {string} opts.chord - The chord to filter notes into.
-     * Valid Values:
-     *  MAJOR2, MAJOR3, MAJOR3_LO, MAJOR7TH, MAJOR9TH, MAJOR11TH,
-     *  MINOR2, MINOR3, MINOR3_LO, MINOR6TH, MINOR7TH, MINOR9TH, MINOR11TH,
-     *  DIM, AUG, SUS2, SUS4, 7SUS2, 7SUS4, 6TH, 7TH, 9TH,
-     *  POWER2, POWER3, OCTAVE2, OCTAVE3
+     *      Valid Values:
+     *          MAJOR2, MAJOR3, MAJOR3_LO, MAJOR7TH, MAJOR9TH, MAJOR11TH,
+     *          MINOR2, MINOR3, MINOR3_LO, MINOR6TH, MINOR7TH, MINOR9TH, MINOR11TH,
+     *          DIM, AUG, SUS2, SUS4, 7SUS2, 7SUS4, 6TH, 7TH, 9TH,
+     *          POWER2, POWER3, OCTAVE2, OCTAVE3
      */
     constructor({chord} = {}) {
         super();
@@ -514,9 +514,11 @@ class MessageTypeFilter extends Filter {
     /**
      * // TODO: desc
      * @param {Object} opts - An object containing one or more of the parameters listed below.
-     * If both a whitelist and blacklist is provided, the blacklist will be ignored.
-     * @param {Number[]|String[]} [whitelist] - An array of numbers or strings representing types of messages to allow through the filter.
-     * @param {Number[]|String[]} [blacklist] - An array of numbers or strings representing types of messages to not allow through the filter.
+     *      If both a whitelist and blacklist is provided, the blacklist will be ignored.
+     * @param {Number[]|String[]} [whitelist] - An array of numbers or strings representing types of messages
+     *      to allow through the filter.
+     * @param {Number[]|String[]} [blacklist] - An array of numbers or strings representing types of messages
+     *      to not allow through the filter.
      */
     constructor({whitelist = [], blacklist = []} = {}) {
         super();
@@ -618,13 +620,13 @@ class VelocityFilter extends Filter {
      * // TODO: desc
      * @param {Object} opts - An object containing one or more of the parameters listed below.
      * @param {Number} [opts.min] - The minimum allowable velocity value.
-     * Must be an integer between 0-127. Default is 0.
+     *      Must be an integer between 0-127. Default is 0.
      * @param {Number} [opts.max] - The maximum allowable velocity value.
-     * Must be an integer between 0-127 and equal to or higher than `opts.min`. Default is 127.
+     *      Must be an integer between 0-127 and equal to or higher than `opts.min`. Default is 127.
      * @param {string} [opts.mode] - The mode for this filter to operate in. Default is `clip`.
-     * * `clip` - Note velocity will be clipped to the value of `opts.min` or `opts.max` if the velocity is out of range.
-     * * `drop` - Drop the note if velocity does not fall within the range of `opts.min` and `opts.max`.
-     * * `scaled` - Note velocity will be scaled relative to the values of `opts.min` and `opts.max`.
+     *      * `clip` - Note velocity will be clipped to the value of `opts.min` or `opts.max` if the velocity is out of range.
+     *      * `drop` - Drop the note if velocity does not fall within the range of `opts.min` and `opts.max`.
+     *      * `scaled` - Note velocity will be scaled relative to the values of `opts.min` and `opts.max`.
      */
     constructor({min = Velocity.min, max = Velocity.max, mode = 'clip'} = {}) {
         super();

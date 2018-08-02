@@ -235,10 +235,10 @@ const pattern = (resolution, ... intervals) => {
  * A more accurate version of setInterval's functionality. Uses `process.hrtime()` to account for clock drift.
  * @param {Function} func - Callback to be executed upon each tick.
  * @param {TimeUnit|Number|Array<TimeUnit|Number>} delay - Interval delay as a {TimeUnit} object defining
- * the duration and it's resolution. Alternatively, passing a {Number} will be handled as {Resolution.MILLISECOND}.
- * Pass an array of delay values to create a repeating timed sequential pattern.
+ *      the duration and it's resolution. Alternatively, passing a {Number} will be handled as {Resolution.MILLISECOND}.
+ *      Pass an array of delay values to create a repeating timed sequential pattern.
  * @param {boolean} [queued] - If true, the first tick won't execute until after the initial delay.
- * Set to false to execute your callback immediately upon calling. Defaults to true.
+ *      Set to false to execute your callback immediately upon calling. Defaults to true.
  * @param {... Object} [params]
  * @returns {wrapper} - An object with a `.cancel()` function for stopping your interval.
  */
