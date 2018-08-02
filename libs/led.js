@@ -1,5 +1,6 @@
 const EventEmitter = require('eventemitter3');
 const logger = require('log4js').getLogger();
+const timing = require('./timing');
 
 class Blinker extends EventEmitter {
     constructor(led) {
@@ -10,7 +11,6 @@ class Blinker extends EventEmitter {
         this._led = led;
         this._blinking = false;
         this._intervals = [];
-        this._currentInterval = 0;
         this._task = undefined;
     }
 
@@ -23,54 +23,48 @@ class Blinker extends EventEmitter {
     }
 
     set intervals(intervals) {
-        if (typeof intervals === 'number') {
-            // TODO: update intervals, AND this._task. handle switching between setInterval & setTimeout
-        } else if (Array.isArray(intervals)) {
-            // TODO: update intervals, AND this._task. handle switching between setInterval & setTimeout
-        } else {
+        if (!Array.isArray(intervals)) {
+            intervals = [ intervals ];
+        }
+        this._intervals = [];
+        for (let interval of intervals) {
+            if (typeof interval !== 'number' || interval < 1) {
+                continue;
+            }
+            this._intervals.push(interval);
+        }
+        if (!this._intervals.length) {
             throw `Invalid value provided for intervals! (${intervals})`;
+        }
+        if (this._blinking) {
+            this._task.cancel();
+            this._task = timing.accurateInterval(this._led.toggle, this._intervals, false);
         }
     }
 
     start(... durations) {
         if (!this._blinking) {
-            this._intervals = [];
-            this._currentInterval = 0;
-            for (let duration of durations) {
-                if (typeof duration !== 'number' && duration < 1) {
-                    continue;
-                }
-                // TODO: Should there be a minimum duration enforced?
-                this._intervals.push(duration);
+            if (durations.length) {
+                this.intervals = durations;
             }
-            switch (this._intervals.length) {
-                case 0:
-                    return;
-                case 1:
-                    this._task = setInterval(this._led.toggle, this._intervals[0]);
-                    break;
-                default:
-                    this._task = setTimeout(() => {
-                        if (this._currentInterval >= this._intervals.length) {
-                            this._currentInterval = 0;
-                        }
-                        this._task = setTimeout(this, this._intervals[this._currentInterval++]);
-                    }, this._intervals[this._currentInterval++]);
+            if (!this._intervals.length) {
+                throw 'No blink durations provided!';
             }
+            if (this._task) {
+                this._task.cancel();
+            }
+            this._task = timing.accurateInterval(this._led.toggle, this._intervals, false);
             this._blinking = true;
             this.emit('start');
-        } else {
+        } else if (durations.length) {
             this.intervals = durations;
         }
     }
 
     stop(turnOff = true) {
-        if (this._blinking) {
-            if (this._intervals.length === 1) {
-                clearInterval(this._task);
-            } else {
-                clearTimeout(this._task);
-            }
+        if (this._blinking && this._task) {
+            this._task.cancel();
+            this._task = undefined;
             if (turnOff) {
                 this._led.off();
             }
