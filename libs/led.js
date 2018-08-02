@@ -83,8 +83,9 @@ class Blinker extends EventEmitter {
 }
 
 class LED extends EventEmitter {
-    constructor(opts) {
+    constructor(opts = {}) {
         super();
+        this._opts = opts;
         this._ready = false;
         this._active = false;
         this._blinker = undefined;
@@ -199,6 +200,10 @@ class LED extends EventEmitter {
 
     get enabled() {
         return this._ready;
+    }
+
+    get opts() {
+        return this._opts;
     }
 
     on() {
@@ -319,14 +324,61 @@ class RasPiStatusLED extends LED {
 
 class LEDManager {
     constructor() {
-        this._led = undefined;
+        this._gpioIndex = {};
+        this._pwmIndex = {};
+        this._rasPiStatusLed = undefined;
     }
 
-    request() {
-        if (!this._led) {
-            this._led = new RasPiStatusLED();
+    get config() {
+        let result = [];
+        for (let led of [... Object.values(this._gpioIndex), ... Object.values(this._pwmIndex), this._rasPiStatusLed]) {
+            if (led) {
+                result.push({ type: led.constructor.name, opts: led.opts });
+            }
         }
-        return this._led;
+        return result;
+    }
+
+    set config(config) {
+        if (!Array.isArray(config)) {
+            config = [ config ];
+        }
+        for (let cfg of config) {
+            switch (cfg.type) {
+                case 'GpioLED':
+                    this._gpioIndex[cfg.opts.pin] = new GpioLED(cfg.opts);
+                    break;
+                case 'PwmLED':
+                    this._pwmIndex[cfg.opts.pin] = new PwmLED(cfg.opts);
+                    break;
+                case 'RasPiStatusLED':
+                    this._rasPiStatusLed = new RasPiStatusLED();
+                    break;
+                default:
+                    //
+            }
+        }
+    }
+
+    gpio(pin) {
+        if (!this._gpioIndex[pin]) {
+            this._gpioIndex[pin] = new GpioLED({ pin });
+        }
+        return this._gpioIndex[pin];
+    }
+
+    pwm(pin) {
+        if (!this._pwmIndex[pin]) {
+            this._pwmIndex[pin] = new PwmLED({ pin });
+        }
+        return this._pwmIndex[pin];
+    }
+
+    get RasPiStatusLED() {
+        if (!this._rasPiStatusLed) {
+            this._rasPiStatusLed = new RasPiStatusLED();
+        }
+        return this._rasPiStatusLed;
     }
 }
 
