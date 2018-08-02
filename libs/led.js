@@ -3,7 +3,7 @@ const logger = require('log4js').getLogger();
 
 class Blinker extends EventEmitter {
     constructor(led) {
-        if (!led) {
+        if (!(led instanceof LED)) {
             throw "LED required for Blinker construction!";
         }
         super();
@@ -89,11 +89,21 @@ class Blinker extends EventEmitter {
 }
 
 class LED extends EventEmitter {
-    constructor() {
+    constructor(opts) {
         super();
         this._ready = false;
         this._active = false;
         this._blinker = undefined;
+        this._setup(opts).then((result) => {
+            if (result) {
+                this._ready();
+                // success
+            } else {
+                // fail
+            }
+        }).catch((reason) => {
+            logger.error(`Error encountered when opening RasPiStatusLED.\nReason: ${reason}`);
+        });
     }
 
     _ready() {
@@ -113,6 +123,11 @@ class LED extends EventEmitter {
         throw "Not implemented!";
     }
 
+    /**
+     * Perform asynchronous setup operations with a {Promise} object.
+     * @returns {Promise} A promise performing the LED setup, resolved with a truthy value if successful.
+     * @private
+     */
     _setup() {
         throw "Not implemented!";
     }
@@ -209,12 +224,72 @@ class LED extends EventEmitter {
     }
 }
 
+class GpioLED extends LED {
+    _setup(opts) {
+        this._led = undefined;
+        return new Promise((resolve) => {
+            let raspi = require('raspi');
+            let gpio = require('raspi-gpio');
+            raspi.init(() => {
+                // TODO
+            });
+        });
+    }
+
+    _read() {
+        // todo: stubbed
+        return false;
+    }
+
+    _turnOff() {
+        if (this._led) {
+            // todo: stubbed
+        }
+    }
+
+    _turnOn() {
+        if (this._led) {
+            // todo: stubbed
+        }
+    }
+}
+
+class PwmLED extends LED {
+    _setup(opts) {
+        this._led = undefined;
+        return new Promise((resolve) => {
+            let raspi = require('raspi');
+            let pwm = require('raspi-pwm');
+            raspi.init(() => {
+                // TODO
+            });
+        });
+    }
+
+    _read() {
+        // todo: stubbed
+        return false;
+    }
+
+    _turnOff() {
+        if (this._led) {
+            // todo: stubbed
+        }
+    }
+
+    _turnOn() {
+        if (this._led) {
+            // todo: stubbed
+        }
+    }
+}
+
 class RasPiStatusLED extends LED {
-    _setup() {
+    _setup(opts) {
         this._led = undefined;
         this._off = undefined;
         this._on = undefined;
-        new Promise((resolve) => {
+        return new Promise((resolve) => {
             try {
                 let raspi = require('raspi');
                 let led = require('raspi-led');
@@ -222,15 +297,12 @@ class RasPiStatusLED extends LED {
                     this._led = new led.LED();
                     this._on = led.ON;
                     this._off = led.OFF;
-                    this._ready();
                     resolve(true);
                 });
             } catch (err) {
                 this._led = false;
                 resolve(false);
             }
-        }).catch((reason) => {
-            logger.error(`Error encountered when opening RasPiStatusLED.\nReason: ${reason}`);
         });
     }
 

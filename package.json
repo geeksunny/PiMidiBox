@@ -24,6 +24,8 @@
   },
   "optionalDependencies": {
     "raspi": "^5.0.2",
-    "raspi-led": "^2.0.0"
+    "raspi-gpio": "^6.0.0",
+    "raspi-led": "^2.0.0",
+    "raspi-pwm": "^6.0.0"
   }
 }
