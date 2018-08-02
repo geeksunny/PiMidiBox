@@ -16,6 +16,7 @@ Written in Node.js.
 * **Config Sync** - Automatic configuration sync & reload to/from USB storage for quick & easy updates from your computer.
 * **Sysex file support** - Parse and transmit .sysex files to output devices.
 * **MIDI-CC maping** - Map MIDI-CC control messages to controlling software features.
+* **Status LED messages** - Make headless operation easier by way of notifying the user of readiness state, automated operations, system errors, etc.
 
 ## Compatibility
 With the target platform being the Raspberry Pi, this project is being built for and tested on Linux systems.

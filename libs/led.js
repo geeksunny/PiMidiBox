@@ -89,24 +89,17 @@ class LED extends EventEmitter {
         this._ready = false;
         this._active = false;
         this._blinker = undefined;
-        this._setup(opts).then((result) => {
-            if (result) {
-                this._ready();
-                // success
+        this._setup(opts).then((success) => {
+            if (success) {
+                this._ready = true;
+                this.refresh();
+                this.emit('ready');
             } else {
                 // fail
             }
         }).catch((reason) => {
-            logger.error(`Error encountered when opening RasPiStatusLED.\nReason: ${reason}`);
+            logger.error(`Error encountered when opening ${this.constructor.name}.\nReason: ${reason}`);
         });
-    }
-
-    _ready() {
-        if (!this._ready) {
-            this._ready = true;
-            this.refresh();
-            this.emit('ready');
-        }
     }
 
     /**
@@ -224,61 +217,88 @@ class LED extends EventEmitter {
 }
 
 class GpioLED extends LED {
-    _setup(opts) {
+    _setup({ pin, pull }) {
         this._led = undefined;
+        this._high = undefined;
+        this._low = undefined;
         return new Promise((resolve) => {
-            let raspi = require('raspi');
-            let gpio = require('raspi-gpio');
-            raspi.init(() => {
-                // TODO
-            });
+            try {
+                let raspi = require('raspi');
+                let gpio = require('raspi-gpio');
+                this._high = gpio.HIGH;
+                this._low = gpio.LOW;
+                raspi.init(() => {
+                    let pullResistor;
+                    switch (pull.toLowerCase()) {
+                        case 'up':
+                            pullResistor = gpio.PULL_UP;
+                            break;
+                        case 'down':
+                            pullResistor = gpio.PULL_DOWN;
+                            break;
+                        case 'none':
+                        default:
+                            pullResistor = gpio.PULL_NONE;
+                    }
+                    this._led = new gpio.DigitalInput({ pin, pullResistor });
+                    resolve(true);
+                });
+            } catch (err) {
+                this._led = false;
+                resolve(false);
+            }
         });
     }
 
     _read() {
-        // todo: stubbed
-        return false;
+        return (this._led && this.led.read() == this._high);
     }
 
     _turnOff() {
         if (this._led) {
-            // todo: stubbed
+            this._led.write(this._low);
         }
     }
 
     _turnOn() {
         if (this._led) {
-            // todo: stubbed
+            this._led.write(this._high);
         }
     }
 }
 
 class PwmLED extends LED {
-    _setup(opts) {
+    // TODO: Add support for modifying the frequency value directly. ie. set to 0.5 for half brightness.
+    _setup({ pin, frequency }) {
         this._led = undefined;
         return new Promise((resolve) => {
-            let raspi = require('raspi');
-            let pwm = require('raspi-pwm');
-            raspi.init(() => {
-                // TODO
-            });
+            try {
+                let raspi = require('raspi');
+                let pwm = require('raspi-pwm');
+                raspi.init(() => {
+                    this._led = new pwm.PWM({ pin, frequency });
+                    resolve(true);
+                });
+            } catch (err) {
+                this._led = false;
+                resolve(false);
+            }
         });
     }
 
     _read() {
-        // todo: stubbed
-        return false;
+        return (this._led && !!this._led.read());
     }
 
     _turnOff() {
         if (this._led) {
-            // todo: stubbed
+            this._led.write(0);
         }
     }
 
     _turnOn() {
         if (this._led) {
-            // todo: stubbed
+            this._led.write(1);
         }
     }
 }
@@ -292,10 +312,10 @@ class RasPiStatusLED extends LED {
             try {
                 let raspi = require('raspi');
                 let led = require('raspi-led');
+                this._on = led.ON;
+                this._off = led.OFF;
                 raspi.init(() => {
                     this._led = new led.LED();
-                    this._on = led.ON;
-                    this._off = led.OFF;
                     resolve(true);
                 });
             } catch (err) {
@@ -360,13 +380,32 @@ class LEDManager {
         }
     }
 
-    gpio(pin) {
+    /**
+     * Open a LED on the Raspberry Pi using GPIO (General Purpose Input Output).
+     * @param {string|number} pin - Pin to open.
+     *      Valid Formats: (see: https://github.com/nebrius/raspi-io/wiki/Pin-Information)
+     *          * Pin function: {string} ex. 'GPIO##'
+     *          * Physical pin: {string} ex. 'P#-##'
+     *          * WiringPi virtual pin: {number} ex. 7
+     * @param {'UP'|'DOWN'|'NONE'} pull='NONE' Which pull resistor to use on the pin, if any.
+     * @returns {GpioLED}
+     */
+    gpio(pin, pull = 'NONE') {
         if (!this._gpioIndex[pin]) {
-            this._gpioIndex[pin] = new GpioLED({ pin });
+            this._gpioIndex[pin] = new GpioLED({ pin, pull });
         }
         return this._gpioIndex[pin];
     }
 
+    /**
+     * Open a LED on the Raspberry Pi using PWM (Pulse Width Modulation).
+     * @param {string|number} pin - Pin to open.
+     *      Valid Formats: (see: https://github.com/nebrius/raspi-io/wiki/Pin-Information)
+     *          * Pin function: {string} ex. 'GPIO##', 'PWM#'
+     *          * Physical pin: {string} ex. 'P#-##'
+     *          * WiringPi virtual pin: {number} ex. 7
+     * @returns {PwmLED}
+     */
     pwm(pin) {
         if (!this._pwmIndex[pin]) {
             this._pwmIndex[pin] = new PwmLED({ pin });
@@ -374,11 +413,15 @@ class LEDManager {
         return this._pwmIndex[pin];
     }
 
+    /**
+     * Open the status LED on a Raspberry Pi.
+     * @returns {RasPiStatusLED}
+     */
     get RasPiStatusLED() {
         if (!this._rasPiStatusLed) {
             this._rasPiStatusLed = new RasPiStatusLED();
         }
-        return this._rasPiStatusLed;
+        return this._rasPiStatusLed();
     }
 }
 
