@@ -26,15 +26,18 @@ class Adjuster {
      * @param {string} opts.description - A description of what this adjuster accomplishes.
      * @param {adjusterValueHandler} opts.handler - Adjuster callback that takes the message's value.
      * @param {boolean} [opts.potPickup=true] - Enable pot-pickup mode when adjusting values.
-     * @param {Object<string, number>} opts.triggerMap - An object defining message properties and their
-     *      values required to trigger this Adjuster.
+     * @param {Object<string, number|boolean>} opts.triggerMap - An object defining message properties used
+     *      to trigger this Adjuster. Define property names as the keys.
+     *      * Use a {number} to define a required numerical value.
+     *      * Use a {boolean} to define a user-configurable value. Properties set to `true` are required
+     *          and `false` are optional.
      * @param {string|number} opts.type - The message type required to trigger this Adjuster.
      * @param {string[]} opts.userMapping - An array of strings defining the potential mapping properties
      *      that are user configurable.
      * @param {string} [opts.valueKey] - An optional string defining the message property to be the
      *      value passed into `opts.handler`.
      */
-    constructor({ name, description, handler, potPickup = true, triggerMap, type, userMapping, valueMap = {} }) {
+    constructor({ name, description, handler, potPickup = true, triggerMap, type, userMapping, valueKey }) {
         // TODO: Refactor for potential of multiple type/property+handler pairings per adjuster
         this.handler = handler;
         this.name = name;
@@ -42,13 +45,31 @@ class Adjuster {
         this.type = type;
         this.triggerMap = triggerMap;
         this.potPickup = potPickup;
-        this.userMapping = userMapping; // todo: rename // todo: 'channel' built in required value
-        this.valueMap = valueMap;   // todo: rename
-        this._value = {};
+        this.userMapping = userMapping;
+        this.valueKey = valueKey;
+        this._value = 0;
     }
 
     process(message) {
-        // todo: return true if matches and an action has been performed.
+        if (this._handler && this._userMap) {
+            for (let { 0: property, 1: value } in Object.entries(this._userMap)) {
+                if (message[property] !== value) {
+                    return false;
+                }
+            }
+            if (this._potPickup) {
+                let value = message[this._valueKey];
+                if (value !== undefined) {
+                    if (Math.abs(this._value - value) <= 1) {
+                        this._value = value;
+                        this._handler(value);
+                    }
+                }
+            } else {
+                this._handler(message[this._valueKey]);
+            }
+            return true;
+        }
         return false;
     }
 
@@ -102,7 +123,7 @@ class Adjuster {
         if (!map || !Object.keys(map).length) {
             throw new TypeError('Trigger map must be an object with at least one key and value.');
         }
-        this._triggerMap = Object.assign({}, map);
+        this._triggerMap = Object.assign({ channel: true }, map);
     }
 
     get type() {
@@ -126,8 +147,17 @@ class Adjuster {
 
     set userMapping(map) {
         if (map) {
-            // todo: any validation required?
-            this._userMap = Object.assign({}, map);
+            let userMap = {};
+            for (let { 0: name, 1: value } of Object.entries(this._triggerMap)) {
+                if (map[name] === undefined) {
+                    if (value !== false) {
+                        throw `Adjuster mapping missing required field '${name}'!`;
+                    }
+                } else {
+                    userMap[name] = map[name];
+                }
+            }
+            this._userMap = userMap;
         }
     }
 
@@ -136,33 +166,19 @@ class Adjuster {
     }
 
     set value(value) {
-        if (value) {
+        if (typeof value === 'number') {
             this._value = value;
         }
     }
 
-    get valueMap() {
-        return this._valueMap;
+    get valueKey() {
+        return this._valueKey;
     }
 
-    set valueMap(map) {
-        // todo: refactor for array of strings instead of object.
-        if (map) {
-            this._valueMap = Object.assign({}, map);
-            if (Object.keys(this._valueMap).length !== 0) {
-                this._valueHandler = (value) => {
-                    if (this._potPickup) {
-                        // todo: potPickup logic
-                    } else {
-                        // todo
-                    }
-                };
-                return;
-            }
+    set valueKey(key) {
+        if (key) {
+            this._valueKey = key;
         }
-        this._valueHandler = () => {
-            return {};//todo: return false?
-        };
     }
 }
 
@@ -175,7 +191,7 @@ class Filter {
     constructor() {
         this._paused = false;
         this._adjustHandlerMap = this._adjusters();
-        this._adjusterMap = {};
+        this._filterAdjusters = [];
     }
 
     // noinspection JSMethodCanBeStatic
@@ -185,7 +201,7 @@ class Filter {
      * @private
      */
     _adjustHandlers() {
-        return {};
+        return [];
     }
 
     /**
@@ -194,6 +210,18 @@ class Filter {
      * @private
      */
     _adjusters() {
+        let adjusters = [
+            new Adjuster({
+                name: 'toggle',
+                description: '',
+                type: 0x0B,
+                potPickup: false,
+                triggerMap: {},
+                handler: () => {
+                    this.toggle();
+                }
+            })
+        ];
         // TODO: Refactor into defined Adjuster objects
         let handlers = {
             toggle: (message) => {
@@ -704,4 +732,4 @@ class VelocityFilter extends Filter {
     }
 }
 
-module.exports = { Filter, ChannelFilter, ChordFilter, MessageTypeFilter, TransposeFilter, VelocityFilter };
+module.exports = { Adjuster, Filter, ChannelFilter, ChordFilter, MessageTypeFilter, TransposeFilter, VelocityFilter };
