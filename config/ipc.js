@@ -1,3 +1,4 @@
+const { deepFreeze } = require('../libs/tools');
 const ipc = require('node-ipc');
 const logger = require('log4js').getLogger();
 
@@ -19,21 +20,23 @@ const logger = require('log4js').getLogger();
 
 // TODO: expose constants of server names
 
-const settings = {
-    "master": {
+const settings = deepFreeze({
+    master: {
         id: "master",
         logger (... texts) {
             logger.info(... texts);
         }
-    }
-    ,
-    "clock": {
+    },
+    clock: {
         id: "clock"
     },
-    "ui": {
+    analog: {
+        id: "analog"
+    },
+    ui: {
         id: "ui"
     }
-};
+});
 
 class IpcAdapter {
     constructor({ ipc } = {}) {

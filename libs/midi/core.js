@@ -160,8 +160,8 @@ const byteToStringTypeMap = Object.freeze({
     0xFF: 'reset'
 });
 
-const stringToByteTypeMap = Object.freeze({
-    basic: Object.freeze({
+const stringToByteTypeMap = tools.deepFreeze({
+    basic: {
         'noteoff': 0x08,
         'noteon': 0x09,
         'poly aftertouch': 0x0A,
@@ -169,8 +169,8 @@ const stringToByteTypeMap = Object.freeze({
         'program': 0x0C,
         'channel aftertouch': 0x0D,
         'pitch': 0x0E
-    }),
-    extended: Object.freeze({
+    },
+    extended: {
         'sysex': 0xF0,
         'mtc': 0xF1,
         'position': 0xF2,
@@ -182,7 +182,7 @@ const stringToByteTypeMap = Object.freeze({
         'continue': 0xFB,
         'stop': 0xFC,
         'reset': 0xFF
-    })
+    }
 });
 
 const SYSEX_START = 0xF0;

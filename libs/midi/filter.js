@@ -470,7 +470,7 @@ class ChannelFilter extends Filter {
     }
 }
 
-const Chord = Object.freeze({
+const Chord = tools.deepFreeze({
     "DISABLED": [],
     "MAJOR3": [0, 4, 7],    // Major, 3 notes
     "MINOR3": [0, 3, 7],    // Minor, 3 notes

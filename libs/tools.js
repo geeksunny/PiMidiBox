@@ -27,6 +27,19 @@ module.exports = {
         return (+now[0] * 1e9) + (+now[1]);
     },
 
+    /**
+     * Recursively freeze the contents of a given object.
+     * @param {Object} obj
+     * @returns {Object} A frozen version of the given object.
+     */
+    deepFreeze(obj) {
+        let result;
+        for (let { 0: key, 1: value } of Object.entries(obj)) {
+            result[key] = (value && typeof value === 'object') ? this.deepFreeze(value) : value;
+        }
+        return Object.freeze(result);
+    },
+
     isEmpty(obj) {
         if (typeof obj === 'undefined' || obj === null) {
             return true;
