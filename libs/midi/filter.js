@@ -195,9 +195,9 @@ class Adjuster extends EventEmitter {
  * @interface
  */
 class Filter {
-    constructor() {
+    constructor({ adjusters } = {}) {
         this._paused = false;
-        this._availableAdjusters = this._prepareAdjusters();
+        this._availableAdjusters = this._prepareAdjusters(adjusters);
         this._mappedAdjusters = {};
     }
 
@@ -213,10 +213,11 @@ class Filter {
 
     /**
      * Prepare the available adjusters for this Filter.
+     * @param {Adjuster[]} customAdjusters - An optional array of custom-defined adjusters to be added to this filter.
      * @returns {Adjuster[]}
      * @private
      */
-    _prepareAdjusters() {
+    _prepareAdjusters(customAdjusters) {
         let adjusters = [
             new Adjuster({
                 name: 'toggle',
@@ -232,6 +233,14 @@ class Filter {
             })
         ];
         let _adjusters = tools.combine(adjusters, this._adjusters());
+        if (Array.isArray(customAdjusters)) {
+            // TODO: Should we replace adjusters that have identical names? Probably.
+            for (let adjuster of customAdjusters) {
+                if (adjuster instanceof Adjuster) {
+                    _adjusters.push(adjuster);
+                }
+            }
+        }
         let mappingHandler = (mapping) => {
             if (Object.keys(mapping).length) {
                 if (!this._mappedAdjusters[adjuster.type]) {
@@ -397,7 +406,7 @@ class ChannelFilter extends Filter {
      *      // Input messages on channel 6 will be forwarded to 1, 7 to 2, 8 to 3.
      *      { "6": 1, "7": 2, "8": 3 }
      */
-    constructor({whitelist = [], blacklist = [], map = {}} = {}) {
+    constructor({ whitelist = [], blacklist = [], map = {} } = {}) {
         super();
         this._whitelist = whitelist;
         this._blacklist = blacklist;
@@ -504,7 +513,7 @@ class ChordFilter extends Filter {
      *          DIM, AUG, SUS2, SUS4, 7SUS2, 7SUS4, 6TH, 7TH, 9TH,
      *          POWER2, POWER3, OCTAVE2, OCTAVE3
      */
-    constructor({chord} = {}) {
+    constructor({ chord } = {}) {
         super();
         if (!chord) {
             throw "Value required for `chord`.";
@@ -574,8 +583,8 @@ class MessageTypeFilter extends Filter {
      * @param {Number[]|String[]} [blacklist] - An array of numbers or strings representing types of messages
      *      to not allow through the filter.
      */
-    constructor({whitelist = [], blacklist = []} = {}) {
-        super();
+    constructor({ whitelist = [], blacklist = [], adjusters } = {}) {
+        super({ adjusters });
         this.whitelist = whitelist;
         this.blacklist = blacklist;
     }
@@ -629,7 +638,7 @@ class TransposeFilter extends Filter {
      * @param {Object} opts - An object containing one or more of the parameters listed below.
      * @param {Number} opts.step - The number of octaves to transpose notes to.
      */
-    constructor({step} = {}) {
+    constructor({ step } = {}) {
         super();
         this.step = step;
     }
@@ -691,7 +700,7 @@ class VelocityFilter extends Filter {
      *      * `drop` - Drop the note if velocity does not fall within the range of `opts.min` and `opts.max`.
      *      * `scaled` - Note velocity will be scaled relative to the values of `opts.min` and `opts.max`.
      */
-    constructor({min = Velocity.min, max = Velocity.max, mode = 'clip'} = {}) {
+    constructor({ min = Velocity.min, max = Velocity.max, mode = 'clip' } = {}) {
         super();
         this.min = min;
         this.max = max;
