@@ -1,3 +1,4 @@
+const EventEmitter = require('eventemitter3');
 const logger = require('log4js').getLogger();
 const tools = require('../tools');
 const { Message } = require('./core');
@@ -19,7 +20,7 @@ const { Message } = require('./core');
  * @param {Object<string, number>} value - The value parsed to match the {Adjuster}'s `valueMap`.
  */
 
-class Adjuster {
+class Adjuster extends EventEmitter {
     /**
      * @param {Object} opts - An object defining the properties to build this Adjuster with.
      * @param {string} opts.name - The name of this adjuster, for configuration purposes.
@@ -38,6 +39,7 @@ class Adjuster {
      *      value passed into `opts.handler`.
      */
     constructor({ name, description, handler, potPickup = true, triggerMap, type, userMapping, valueKey }) {
+        super();
         // TODO: Refactor for potential of multiple type/property+handler pairings per adjuster
         this.handler = handler;
         this.name = name;
@@ -154,10 +156,15 @@ class Adjuster {
                         throw `Adjuster mapping missing required field '${name}'!`;
                     }
                 } else {
-                    userMap[name] = map[name];
+                    if (typeof value === 'number') {
+                        userMap[name] = value;
+                    } else {
+                        userMap[name] = map[name];
+                    }
                 }
             }
             this._userMap = userMap;
+            this.emit('mapped', this._userMap);
         }
     }
 
@@ -190,8 +197,8 @@ class Adjuster {
 class Filter {
     constructor() {
         this._paused = false;
-        this._adjustHandlerMap = this._adjusters();
-        this._filterAdjusters = [];
+        this._availableAdjusters = this._prepareAdjusters();
+        this._mappedAdjusters = {};
     }
 
     // noinspection JSMethodCanBeStatic
@@ -200,125 +207,122 @@ class Filter {
      * @returns {Adjuster[]}
      * @private
      */
-    _adjustHandlers() {
+    _adjusters() {
         return [];
     }
 
     /**
-     *
+     * Prepare the available adjusters for this Filter.
      * @returns {Adjuster[]}
      * @private
      */
-    _adjusters() {
+    _prepareAdjusters() {
         let adjusters = [
             new Adjuster({
                 name: 'toggle',
-                description: '',
+                description: 'Toggle the pause-state on this filter.',
                 type: 0x0B,
                 potPickup: false,
-                triggerMap: {},
+                triggerMap: {
+                    controller: true
+                },
                 handler: () => {
                     this.toggle();
                 }
             })
         ];
-        // TODO: Refactor into defined Adjuster objects
-        let handlers = {
-            toggle: (message) => {
-                this.toggle();
+        let _adjusters = tools.combine(adjusters, this._adjusters());
+        let mappingHandler = (mapping) => {
+            if (Object.keys(mapping).length) {
+                if (!this._mappedAdjusters[adjuster.type]) {
+                    this._mappedAdjusters[adjuster.type] = {};
+                }
+                this._mappedAdjusters[adjuster.type][adjuster.name] = adjuster;
+            } else {
+                if (this._mappedAdjusters[adjuster.type]) {
+                    delete this._mappedAdjusters[adjuster.type][adjuster.name];
+                    if (!Object.keys(this._mappedAdjusters[adjuster.type]).length) {
+                        delete this._mappedAdjusters[adjuster.type];
+                    }
+                }
             }
         };
-        let _handlers = this._adjustHandlers();
-        return (_handlers) ? tools.combine(handlers, _handlers) : handlers;
+        for (let adjuster of _adjusters) {
+            mappingHandler(adjuster.userMapping);
+            adjuster.on('mapped', mappingHandler);
+        }
+        return _adjusters;
     }
 
+    /**
+     * Get all available Adjusters for use with this Filter.
+     * @returns {Adjuster[]}
+     */
     get adjusters() {
-        let result = {};
-        for (let name in this._adjustHandlerMap) {
-            result[name] = undefined;
-        }
-        for (let { 0: type, 1: adjusters } of Object.entries(this._adjusterMap)) {
-            for (let adjuster of adjusters) {
-                result[adjuster.name] = {
-                    name: adjuster.name,
-                    type: type,
-                    channel: adjuster.channel,
-                    properties: adjuster.properties
-                };
-            }
-        }
-        return result;
+        return this._availableAdjusters;
     }
 
+    /**
+     * Configure one or more Adjuster mapping.
+     * @param {Object<string, Object<string, number>>} adjusters
+     */
     set adjusters(adjusters) {
-        for (let { 0: name, 1: adjuster } of Object.entries(adjusters)) {
-            if (!adjuster) {
-                // TODO: Clean up variable names here to be more specific.
-                outerLoop:
-                for (let { 0: type, 1: _adjusters } of Object.entries(this._adjusterMap)) {
-                    for (let { 0: key, 1: _adjuster } of Object.entries(_adjusters)) {
-                        if (_adjuster.name === name) {
-                            tools.removeIndex(key, _adjusters);
-                            if (!_adjusters.length) {
-                                delete this._adjusterMap[type];
-                            }
-                            break outerLoop;
-                        }
-                    }
-                }
-            } else if (this._adjustHandlerMap[name]) {
-                let { type, channel, properties } = adjuster;
-                if (!tools.areDefined(type, channel, properties)) {
-                    throw "Adjuster configuration requires values for `type`, `channel`, and `properties`!";
-                } else if (!Object.keys(properties).length) {
-                    throw "Adjuster configuration requires at least one key-value pair in the `properties` object!";
-                } else {
-                    if (typeof type === 'string') {
-                        type = Message.typeFromString(type);
-                    }
-                    if (!this._adjusterMap[type]) {
-                        this._adjusterMap[type] = [];
-                    }
-                    this._adjusterMap[type].push({ name, channel, properties, handler: this._adjustHandlerMap });
+        if (adjusters) {
+            for (let adjuster of this._availableAdjusters) {
+                if (adjusters[adjuster.name]) {
+                    adjuster.userMapping = adjusters[adjuster.name];
                 }
             }
         }
     }
 
+    /**
+     * Pause operation of this Filter.
+     */
     pause() {
         if (!this._paused) {
             this._paused = true;
         }
     }
 
+    /**
+     * Resume operation of this Filter if paused.
+     */
     unpause() {
         if (this._paused) {
             this._paused = false;
         }
     }
 
+    /**
+     * Toggle the paused-state of this Filter.
+     */
     toggle() {
         this._paused = !this._paused;
     }
 
+    /**
+     * Get the current paused-state of this Filter.
+     * @returns {boolean} True if this Filter is paused.
+     */
     get paused() {
         return this._paused;
     }
 
+    /**
+     * Process a given MIDI message with this Filter's mapped Adjusters.
+     * @param {Message} message
+     * @returns {boolean} True if the message has been consumed by an Adjuster.
+     *      The message chain for this message should be cancelled.
+     * @private
+     */
     _processAdjusters(message) {
         let type = message.type;
-        if (this._adjusterMap[type]) {
-            for (let { name, properties, handler } of this._adjusterMap[type]) {
-                let match = true;
-                for (let key in properties) {
-                    if (message[key] !== properties[key]) {
-                        match = false;
-                        break;
-                    }
-                }
-                if (match) {
+        if (this._mappedAdjusters[type]) {
+            for (let { 0: name, 1: adjuster } of Object.entries(this._mappedAdjusters)) {
+                let processed = adjuster.process(message);
+                if (processed) {
                     logger.debug(`${this.constructor.name} process handled by mapped action '${name}'.`);
-                    handler(message);
                     return true;
                 }
             }
@@ -326,18 +330,26 @@ class Filter {
         return false;
     }
 
+    /**
+     * Process a given MIDI message with this Filter.
+     * @param {Message} message - The MIDI message to be processed.
+     * @returns {boolean|Message|Message[]} - One of three types of values can be returned.
+     *      * {boolean} true - The supplied Message was consumed by a Filter Adjuster. The message chain should be cancelled.
+     *      * {boolean} false - The supplied Message should be cancelled. The message chain should continue.
+     *      * {Message|Message[]} - Resulting processed message(s) to be passed along.
+     */
     process(message) {
         if (this._paused) {
             return message;
         } else if (this._processAdjusters(message)) {
-            return false;
+            return true;
         } else {
             return this._process(message);
         }
     }
 
     /**
-     * Process a given MIDI message with this
+     * Must override to implement the processing logic of this Filter class.
      * @param {Message} message - The MIDI message to be processed.
      * @returns {Message|Message[]|boolean} The message or array of messages to be passed down the line.
      * Return `false` to cancel the message from being passed along.
@@ -361,7 +373,12 @@ class Filter {
         if (!settings) {
             settings = {};
         }
-        settings.adjusters = this.adjusters;
+        if (this._availableAdjusters.length) {
+            settings.adjusters = {};
+            for (let adjuster of this._availableAdjusters) {
+                settings.adjusters[adjuster.name] = adjuster.userMapping;
+            }
+        }
         return settings;
     }
 }
@@ -495,13 +512,22 @@ class ChordFilter extends Filter {
         this.chord = chord;
     }
 
-    _adjustHandlers() {
-        // TODO: Refactor into defined Adjuster objects
-        return {
-            chord: (message) => {
-                this.chord = Math.trunc(message.value / ChordSteps);
-            }
-        };
+    _adjusters() {
+        return [
+            new Adjuster({
+                name: 'chord',
+                description: 'Change the currently active chord.',
+                type: 0x0B,
+                potPickup: true,
+                triggerMap: {
+                    controller: true
+                },
+                valueKey: 'value',
+                handler: (value) => {
+                    this.chord = Math.trunc(value / ChordSteps);
+                }
+            })
+        ];
     }
 
     set chord(chord) {
@@ -608,14 +634,23 @@ class TransposeFilter extends Filter {
         this.step = step;
     }
 
-    _adjustHandlers() {
-        // TODO: Refactor into defined Adjuster objects
-        return {
-            step: (message) => {
-                // Takes the value of `message.value` [0-127] and scales it across -10 / +10
-                this.step = Math.round(message.value / 6.35) - 10;
-            }
-        };
+    _adjusters() {
+        return [
+            new Adjuster({
+                name: 'step',
+                description: 'Change the currently active transpose step.',
+                type: 0x0B,
+                potPickup: true,
+                triggerMap: {
+                    controller: true
+                },
+                valueKey: 'value',
+                handler: (value) => {
+                    // Takes the value of `message.value` [0-127] and scales it across -10 / +10
+                    this.step = Math.round(value / 6.35) - 10;
+                }
+            })
+        ];
     }
 
     set step(value) {
@@ -663,22 +698,51 @@ class VelocityFilter extends Filter {
         this.mode = mode;
     }
 
-    _adjustHandlers() {
-        // TODO: Refactor into defined Adjuster objects
-        return {
-            min: (message) => {
-                // TODO: Adjust the current value of this.min based on a value calculated with message.value.
-                throw "Stubbed!";
-            },
-            max: (message) => {
-                // TODO: Adjust the current value of this.max based on a value calculated with message.value.
-                throw "Stubbed!";
-            },
-            mode: (message) => {
-                // TODO: Adjust the current value of this.mode based on a value calculated with message.value.
-                throw "Stubbed!";
-            }
-        };
+    _adjusters() {
+        return [
+            new Adjuster({
+                name: 'min',
+                description: 'Change the minimum velocity setting.',
+                type: 0x0B,
+                potPickup: true,
+                triggerMap: {
+                    controller: true
+                },
+                valueKey: 'value',
+                handler: (value) => {
+                    // TODO: Adjust the current value of this.min based on a value calculated with `value`.
+                    throw "Stubbed!";
+                }
+            }),
+            new Adjuster({
+                name: 'max',
+                description: 'Change the maximum velocity setting.',
+                type: 0x0B,
+                potPickup: true,
+                triggerMap: {
+                    controller: true
+                },
+                valueKey: 'value',
+                handler: (value) => {
+                    // TODO: Adjust the current value of this.max based on a value calculated with `value`.
+                    throw "Stubbed!";
+                }
+            }),
+            new Adjuster({
+                name: 'mode',
+                description: 'Change the currently active velocity mode.',
+                type: 0x0B,
+                potPickup: true,
+                triggerMap: {
+                    controller: true
+                },
+                valueKey: 'value',
+                handler: (value) => {
+                    // TODO: Adjust the current value of this.mode based on a value calculated with `value`.
+                    throw "Stubbed!";
+                }
+            }),
+        ];
     }
 
     set mode(mode) {

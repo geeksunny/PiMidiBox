@@ -608,7 +608,7 @@ class Input extends Device {
             let message = new Message(msg, { deltaTime });
             // todo: THIS MIGHT CRASH!!! this device might emit message before the constructor fully finishes.
             for (let handler of this._messageHandlers) {
-                if (handler(this, message)) {
+                if (handler(this, message) === true) {
                     logger.debug('Message chain handled early.');
                     break;
                 }

@@ -129,11 +129,16 @@ module.exports = {
         if (Array.isArray(objects[0])) {
             result = [ ... objects.shift() ];
             for (let object of objects) {
-                result.push(... (Array.isArray(object)) ? object : Object.entries(object));
+                if (object) {
+                    result.push(... (Array.isArray(object)) ? object : Object.entries(object));
+                }
             }
         } else {
             let i = 0;
             for (let object of objects) {
+                if (!object) {
+                    continue;
+                }
                 if (Array.isArray(object)) {
                     for (let item of object) {
                         result[i++] = item;

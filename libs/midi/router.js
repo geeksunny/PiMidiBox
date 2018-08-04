@@ -438,16 +438,25 @@ class Mapping {
         }
     }
 
+    /**
+     * Process a given MIDI message through this Mapping's active Filters.
+     * @param {Message} message - The MIDI message to be processed.
+     * @returns {boolean|Message[]}
+     *      * {boolean} true - The supplied Message was consumed and the message chain should be cancelled.
+     *      * {boolean} false - The supplied Message should be suppressed. The message chain should continue.
+     *      * {Message[]} - Resulting processed message(s) to broadcast to the mapping.
+     */
     process(message) {
         let result = [message];
         for (let filter of this._filters) {
             let next = [];
             for (let msg of result) {
                 let processed = filter.process(msg);
-                if (!processed) {
-                    return false;
+                if (typeof processed === 'boolean') {
+                    return processed;
+                } else if (processed) {
+                    next.push.apply(next, (Array.isArray(processed)) ? processed : [processed]);
                 }
-                next.push.apply(next, (Array.isArray(processed)) ? processed : [processed]);
             }
             result = [... next];
         }
@@ -609,7 +618,9 @@ class Router {
             return;
         }
         let processed = mapping.process(message);
-        if (processed) {
+        if (processed === true) {
+            return true;
+        } else if (processed) {
             for (let msg of processed) {
                 mapping.broadcast(msg.bytes);
             }
