@@ -1,4 +1,4 @@
-module.exports = {
+let tools = {
 
     /**
      * A collection of functions that handle common string formatting actions.
@@ -33,9 +33,9 @@ module.exports = {
      * @returns {Object} A frozen version of the given object.
      */
     deepFreeze(obj) {
-        let result;
+        let result = {};
         for (let { 0: key, 1: value } of Object.entries(obj)) {
-            result[key] = (value && typeof value === 'object') ? this.deepFreeze(value) : value;
+            result[key] = (value && typeof value === 'object') ? tools.deepFreeze(value) : value;
         }
         return Object.freeze(result);
     },
@@ -47,7 +47,7 @@ module.exports = {
             let empty = !obj.length;
             if (!empty) {
                 for (let i = 0; i < obj.length; i++) {
-                    empty = this.isEmpty(obj[i]);
+                    empty = tools.isEmpty(obj[i]);
                     if (!empty) {
                         break;
                     }
@@ -100,7 +100,7 @@ module.exports = {
         indexes.sort();
         let results = [];
         for (let i in indexes) {
-            results.push(this.removeIndex(index - i, array));
+            results.push(tools.removeIndex(index - i, array));
         }
         return results;
     },
@@ -113,17 +113,17 @@ module.exports = {
                 if (multiple) {
                     indexes.push(i);
                 } else {
-                    return this.removeIndex(i, array);
+                    return tools.removeIndex(i, array);
                 }
             }
         }
-        return (indexes.length) ? this.removeIndexes(indexes, array) : null;
+        return (indexes.length) ? tools.removeIndexes(indexes, array) : null;
     },
 
     removeFromArray(value, array) {
         let i = array.indexOf(value);
         if (i > -1) {
-            this.removeIndex(i, array);
+            tools.removeIndex(i, array);
             return true;
         } else {
             return false;
@@ -190,7 +190,7 @@ module.exports = {
     },
 
     withinRange(value, min, max) {
-        return this.clipToRange(value, min, max) === value;
+        return tools.clipToRange(value, min, max) === value;
     },
 
     forEach(data, callback) {
@@ -237,10 +237,12 @@ module.exports = {
             obj[name] = Symbol(name);
         }
         obj.validate = (value) => {
-            let name = this.symbolName(value);
+            let name = tools.symbolName(value);
             return (name && name in obj);
         };
         return Object.freeze(obj);
     }
 
 };
+
+module.exports = tools;
