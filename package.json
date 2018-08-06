@@ -9,6 +9,7 @@
   "author": "Justin Swanson <geeksunny@gmail.com>",
   "license": "ISC",
   "dependencies": {
+    "baudio": "^2.1.2",
     "clear": "^0.1.0",
     "drivelist": "^6.4.0",
     "eventemitter3": "^3.1.0",
@@ -20,6 +21,7 @@
     "signal-exit": "^3.0.2",
     "sleep": "file:node-sleep",
     "usb-detection": "^3.2.0",
+    "vol": "^3.0.0",
     "yargs": "^11.1.0"
   },
   "optionalDependencies": {

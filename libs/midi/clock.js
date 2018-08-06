@@ -109,9 +109,9 @@ class Tick {
 }
 
 /**
- * Master class for coordinating with and controlling the Clock Worker.
+ * Master class for coordinating with and controlling the Digital Clock Worker.
  */
-class Master extends EventEmitter {
+class DigitalClockMaster extends EventEmitter {
     // TODO: add logic for swing. (Is this even possible through midi clock signals?)
     // TODO: add 'wholenote', 'quarternote', etc events?
     constructor({ ppqn = 24, bpm = 120, patternLength = 16 } = {}) {
@@ -244,16 +244,137 @@ class Master extends EventEmitter {
     }
 }
 
+class AnalogClockMaster extends EventEmitter {
+    // TODO: Should this share code with DigitalClockMaster?
+    constructor({ bpm = 120, volume = 0.5 } = {}) {
+        super();
+        this._startQueued = true;
+        this._started = false;
+        this._socket = undefined;
+        this._workerProcess = undefined;
+        this.tempo = bpm;
+        this.volume = volume;
+        this._setup();
+    }
+
+    _setup() {
+        ipc.on('analog.ready', (data, socket) => {
+            this._socket = socket;
+            this._updateWorker();
+        });
+        ipc.on('analog.state', ({ started }) => {
+            if (typeof started !== 'boolean') {
+                logger.error(`Unsupported type passed for 'analog.state.started' (${typeof started}), requires boolean.`);
+                return;
+            }
+            this._started = started;
+            this.emit(started ? 'start' : 'stop');
+        });
+        ipc.on('analog.config', (config) => {
+            this._bpm = config.bpm;
+            this._volume = config.volume;
+            this.emit('config', config);
+        });
+        ipc.on('analog.error', ({ message }) => {
+            logger.error(`Analog clock error occurred!\n${message}`);
+        });
+    }
+
+    /**
+     * Update the worker's configuration.
+     * @param {Object} [config] - Optional configuration object to deploy to the worker. If not provided, the default
+     *      config payload will be used.
+     * @private
+     */
+    _updateWorker(config) {
+        if (this._socket) {
+            if (!config) {
+                config = { bpm: this._bpm };
+            }
+            ipc.emit('analog.config', config, this._socket);
+            if (this._startQueued) {
+                this._startQueued = false;
+                this.start();
+            }
+        }
+    }
+
+    start() {
+        if (this._socket) {
+            if (!this._started) {
+                ipc.emit('analog.control', { action: 'start' }, this._socket);
+            }
+            return;
+        }
+        this._startQueued = true;
+        if (!this._workerProcess) {
+            this._workerProcess = cp.fork('analog', './analogworker.js');
+        }
+    }
+
+    stop() {
+        if (this._socket && this._started) {
+            ipc.emit('analog.control', { action: 'stop' }, this._socket);
+        }
+    }
+
+    kill() {
+        this._socket = undefined;
+        if (this._workerProcess) {
+            this._workerProcess.kill();
+            this._workerProcess = undefined;
+        }
+    }
+
+    get ticking() {
+        return this._started;
+    }
+
+    get tempo() {
+        return this._bpm;
+    }
+
+    set tempo(bpm) {
+        if (bpm && this._bpm !== bpm) {
+            this._bpm = bpm;
+            this._updateWorker();
+            this.emit('set', { bpm });
+        }
+    }
+
+    requestVolume() {
+        return new Promise((resolve, reject) => {
+            this.once('config', (config) => {
+                resolve(config);
+            });
+        });
+    }
+
+    get volume() {
+        return this._volume;
+    }
+
+    set volume(level) {
+        if (typeof level === 'number') {
+            level = tools.clipToRange(Math.abs(level), 0.0, 1.0);
+            this._volume = level;
+            this._updateWorker({ volume: level });
+            this.emit('set', { volume: level });
+        }
+    }
+}
+
 // TODO: figure out logic for sharing ticks/pulses with multiple ppqn. master:24ppqn,slave:2ppqn - this would work due to the easy even numbers... non-multiples wouldn't be able to share since this blocks the thread its on. non-multiples would require multiple threads spun up.
 class Clock {
-    constructor({ bpm = 120, ppqn = 24, patternLength = 16, tapEnabled = true, outputs = [] } = {}) {
+    constructor({ bpm = 120, ppqn = 24, patternLength = 16, tapEnabled = true, outputs = [], analog = false } = {}) {
         // TODO: Add play queueing, play immediately features. Stop queueing as well? (fires at end of current pattern) If not queued, should a sequence position be sent to sync device sequencers?
         this._playing = false;
         this._paused = false;
         this._outputs = [];
         this.tapEnabled = tapEnabled;
         this._tapTimes = [];
-        this._clock = new Master({ bpm, ppqn, patternLength });
+        this._clock = new DigitalClockMaster({ bpm, ppqn, patternLength });
+        this.analog = analog;
         this._clock.on('tick', this._onTick);
         this._clock.on('start', this._onStart);
         this._clock.on('stop', this._onStopOnPause);
@@ -261,6 +382,18 @@ class Clock {
         this._clock.on('unpause', this._onUnpause);
         if (Array.isArray(outputs)) {
             this.add(... outputs);
+    }
+
+    get analog() {
+        return !!this._analog;
+    }
+
+    set analog(enabled) {
+        if (enabled && !this._analog) {
+            this._analog = new AnalogClockMaster({ bpm: this.tempo });
+        } else if (!enabled && !!this._analog) {
+            this._analog.kill();
+            this._analog = undefined;
         }
     }
 
@@ -285,6 +418,9 @@ class Clock {
 
     set tempo(bpm) {
         this._clock.tempo = bpm;
+        if (this._analog) {
+            this._analog.tempo = bpm;
+        }
     }
 
     get patternLength() {

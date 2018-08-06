@@ -6,7 +6,7 @@ const { now } = require('../tools');
 /**
  * Worker class for calculating ticks. Will only run if the master IPC server is running in another process.
  */
-class Worker extends EventEmitter {
+class DigitalClockWorker extends EventEmitter {
     constructor(opts = {}) {
         super();
         this._started = false;
@@ -77,7 +77,7 @@ class Worker extends EventEmitter {
 }
 
 // Create worker and wait for a command.
-const worker = new Worker();
+const worker = new DigitalClockWorker();
 worker.on('destroy', () => {
     console.log(`IPC connection received 'destroy' event! Closing.`);
     process.exit();
