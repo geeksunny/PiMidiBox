@@ -209,7 +209,14 @@ class DigitalClockMaster extends EventEmitter {
     }
 
     kill() {
-        // TODO: kill worker process, delete this._socket
+        this._socket.end();
+        this._socket = undefined;
+        this._started = false;
+        this._paused = false;
+        if (this._workerProcess) {
+            this._workerProcess.kill();
+            this._workerProcess = undefined;
+        }
     }
 
     get ticking() {
@@ -319,7 +326,9 @@ class AnalogClockMaster extends EventEmitter {
     }
 
     kill() {
+        this._socket.end();
         this._socket = undefined;
+        this._started = false;
         if (this._workerProcess) {
             this._workerProcess.kill();
             this._workerProcess = undefined;
