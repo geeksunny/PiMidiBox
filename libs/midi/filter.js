@@ -144,7 +144,7 @@ class Adjuster extends EventEmitter {
     }
 
     get userMapping() {
-        return this._userMap;
+        return this._userMap || {};
     }
 
     set userMapping(map) {
@@ -197,8 +197,8 @@ class Adjuster extends EventEmitter {
 class Filter {
     constructor({ adjusters } = {}) {
         this._paused = false;
-        this._availableAdjusters = this._prepareAdjusters(adjusters);
         this._mappedAdjusters = {};
+        this._availableAdjusters = this._prepareAdjusters(adjusters);
     }
 
     // noinspection JSMethodCanBeStatic
@@ -225,7 +225,8 @@ class Filter {
                 type: 0x0B,
                 potPickup: false,
                 triggerMap: {
-                    controller: true
+                    controller: true,
+                    value: false
                 },
                 handler: () => {
                     this.toggle();
@@ -241,22 +242,22 @@ class Filter {
                 }
             }
         }
-        let mappingHandler = (mapping) => {
-            if (Object.keys(mapping).length) {
-                if (!this._mappedAdjusters[adjuster.type]) {
-                    this._mappedAdjusters[adjuster.type] = {};
-                }
-                this._mappedAdjusters[adjuster.type][adjuster.name] = adjuster;
-            } else {
-                if (this._mappedAdjusters[adjuster.type]) {
-                    delete this._mappedAdjusters[adjuster.type][adjuster.name];
-                    if (!Object.keys(this._mappedAdjusters[adjuster.type]).length) {
-                        delete this._mappedAdjusters[adjuster.type];
+        for (let adjuster of _adjusters) {
+            let mappingHandler = (mapping) => {
+                if (Object.keys(mapping).length) {
+                    if (!this._mappedAdjusters[adjuster.type]) {
+                        this._mappedAdjusters[adjuster.type] = {};
+                    }
+                    this._mappedAdjusters[adjuster.type][adjuster.name] = adjuster;
+                } else {
+                    if (this._mappedAdjusters[adjuster.type]) {
+                        delete this._mappedAdjusters[adjuster.type][adjuster.name];
+                        if (!Object.keys(this._mappedAdjusters[adjuster.type]).length) {
+                            delete this._mappedAdjusters[adjuster.type];
+                        }
                     }
                 }
-            }
-        };
-        for (let adjuster of _adjusters) {
+            };
             mappingHandler(adjuster.userMapping);
             adjuster.on('mapped', mappingHandler);
         }
