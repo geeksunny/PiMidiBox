@@ -17,16 +17,21 @@ const argv = require('yargs')
         description: 'Run configuration wizard',
         type: 'boolean'
     })
-    .option('l', {
-        alias: 'list',
-        default: false,
-        description: 'List all connected MIDI devices',
-        type: 'boolean'
-    })
     .option('h', {
         alias: 'hotplug',
         default: true,
         description: 'Maintain device connections after starting the router',
+        type: 'boolean'
+    })
+    .option('kill', {
+        default: false,
+        description: 'Send a kill signal to the running Router service.',
+        type: 'boolean'
+    })
+    .option('l', {
+        alias: 'list',
+        default: false,
+        description: 'List all connected MIDI devices',
         type: 'boolean'
     })
     .option('monitor', {
@@ -66,23 +71,43 @@ if (argv.configure) {
         logger.debug(`Device: ${device.name} | Channel: ${message.channel} | Controller: ${message.controller} | Value: ${message.value}`);
     };
 } else {
-    const Router = require('./libs/midi/router');
-    const midiRouter = new Router.Router();
-    midiRouter.loadConfig(argv.config);
-    // Handle exit events.
-    require('signal-exit')((code, signal) => {
-        logger.info(`Exit event detected: ${signal} (${code})`);
-        midiRouter.onExit();
-    });
-    process.on('uncaughtException', (err) => {
-        logger.error(`UncaughtException: ${err}`);
-        process.exit(1);
-    });
-    // Set up IPC server.
-    const ipc = require('./config/ipc').server('master');
-    ipc.start(() => {
-        logger.info('IPC server started!');
-    });
-    // Ready!
-    logger.info('Ready.');
+    const ipcManager = require('./config/ipc');
+    if (argv.kill) {
+        const ipc = ipcManager.client('messenger', 'master');
+        ipc.start(() => {
+            ipc.emit('kill');
+            ipc.stop();
+            process.exit(0);
+        });
+    } else {
+        const Router = require('./libs/midi/router');
+        const midiRouter = new Router.Router();
+        // Handle exit events.
+        require('signal-exit')((code, signal) => {
+            logger.info(`Exit event detected: ${signal} (${code})`);
+            midiRouter.onExit();
+        });
+        process.on('uncaughtException', (err) => {
+            logger.error(`UncaughtException: ${err}`);
+            process.exit(1);
+        });
+        // Set up IPC server.
+        const ipc = ipcManager.server('master');
+        ipc.on('error', (e) => {
+            if (e.code === 'EADDRINUSE') {
+                logger.error(`Cannot be started. Service is already running. (EADDRINUSE)`);
+                process.exit(1);
+            }
+        });
+        ipc.on('kill', () => {
+            logger.info('IPC server killed by remote command.');
+            process.exit(0);
+        });
+        ipc.start(() => {
+            logger.info('IPC server started!');
+            midiRouter.loadConfig(argv.config);
+            // Ready!
+            logger.info('Ready.');
+        });
+    }
 }

@@ -33,6 +33,9 @@ const settings = deepFreeze({
     analog: {
         id: "analog"
     },
+    messenger: {
+        id: "messenger"
+    },
     ui: {
         id: "ui"
     }
@@ -61,6 +64,10 @@ class IpcAdapter {
     }
 
     _start(callback) {
+        throw "Not implemented!";
+    }
+
+    _stop(callback) {
         throw "Not implemented!";
     }
 
@@ -94,6 +101,14 @@ class IpcAdapter {
         }
         this._started = true;
     }
+
+    stop(callback) {
+        if (!this._started) {
+            return;
+        }
+        this._stop(callback);
+        this._started = false;
+    }
 }
 
 class IpcServer extends IpcAdapter {
@@ -117,6 +132,13 @@ class IpcServer extends IpcAdapter {
         this.ipc.serve(callback);
         this.ipc.server.start();
     }
+
+    _stop(callback) {
+        if (typeof callback === 'function') {
+            this.ipc.server.once('destroy', callback);
+        }
+        this.ipc.server.stop();
+    }
 }
 
 class IpcClient extends IpcAdapter {
@@ -138,6 +160,13 @@ class IpcClient extends IpcAdapter {
 
     _start(callback) {
         this.ipc.connectTo(this._serverName, callback);
+    }
+
+    _stop(callback) {
+        if (typeof callback === 'function') {
+            this.ipc.of[this._serverName].once('destroy', callback);
+        }
+        this.ipc.disconnect(this._serverName);
     }
 }
 
