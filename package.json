@@ -7,6 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Justin Swanson <geeksunny@gmail.com>",
+  "bin": {
+    "pimidibox": "index.js"
+  },
   "license": "ISC",
   "dependencies": {
     "baudio": "^2.1.2",

@@ -1,0 +1,10 @@
+[Unit]
+Description=PiMidiBox MIDI Router daemon
+
+[Service]
+Type=forking
+ExecStart=pimidibox
+ExecStop=killall -s KILL node
+
+[Install]
+WantedBy=multi-user.target
