@@ -97,6 +97,8 @@ class DeviceRecord extends ConfigRecord {
  */
 class ClockRecord extends ConfigRecord {
     _reset() {
+        this._adjusters = {};
+        this._inputs = [];
         this._outputs = [];
         this._bpm = 120;
         this._ppqn = 24;
@@ -105,8 +107,13 @@ class ClockRecord extends ConfigRecord {
     }
 
     _fromJson(json) {
+        if (json.adjusters) {
+            this._adjusters = json.adjusters;
+        }
+        if (!tools.isEmpty(json.inputs)) {
+            this._inputs.push(... json.inputs);
+        }
         if (!tools.isEmpty(json.outputs)) {
-            // TODO: Validate before add?
             this._outputs.push(... json.outputs);
         }
         if (json.bpm) {
@@ -125,6 +132,8 @@ class ClockRecord extends ConfigRecord {
 
     _toJson() {
         return {
+            adjusters: this._adjusters,
+            inputs: this._inputs,
             outputs: this._outputs,
             bpm: this._bpm,
             ppqn: this._ppqn,
@@ -135,6 +144,10 @@ class ClockRecord extends ConfigRecord {
 
     _fromRouter(router) {
         let clock = router.clock;
+        this._adjusters = clock.adjusters;
+        for (let input of clock.inputs) {
+            this._inputs.push(input.nickname);
+        }
         for (let output of clock.outputs) {
             this._outputs.push(output.nickname);
         }
@@ -146,6 +159,7 @@ class ClockRecord extends ConfigRecord {
 
     _toRouter(router) {
         let json = this._toJson();
+        json.inputs = midi.Core.openInputs(... midi.PortIndex.gather(... this._inputs));
         json.outputs = midi.Core.openOutputs(... midi.PortIndex.gather(... this._outputs));
         router.clock = json;
     }

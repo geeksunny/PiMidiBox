@@ -2,7 +2,8 @@ const EventEmitter = require('eventemitter3');
 const cp = require('../childprocess');
 const ipc = require('../../config/ipc').server('master');
 const logger = require('log4js').getLogger();
-const { Message, Output } = require('./core');
+const { Message, Input, Output } = require('./core');
+const { Adjuster, MessageTypeFilter } = require('./filter');
 const tools = require('../tools');
 
 // TODO: Add configuration option for microseconds over nanoseconds
@@ -13,6 +14,7 @@ const TAP_TIMEOUT = 3 * 1e9;    // 3 seconds in nanoseconds
 
 const BPM_MIN = 60;
 const BPM_MAX = 300;
+const BPM_STEPS = (BPM_MIN - BPM_MAX) / 128;
 
 const MIDI_CLOCK = Message.fromProperties('clock').bytes;
 const MIDI_START = Message.fromProperties('start').bytes;
@@ -375,22 +377,106 @@ class AnalogClockMaster extends EventEmitter {
 
 // TODO: figure out logic for sharing ticks/pulses with multiple ppqn. master:24ppqn,slave:2ppqn - this would work due to the easy even numbers... non-multiples wouldn't be able to share since this blocks the thread its on. non-multiples would require multiple threads spun up.
 class Clock {
-    constructor({ bpm = 120, ppqn = 24, patternLength = 16, tapEnabled = true, outputs = [], analog = false } = {}) {
+    constructor({ bpm = 120, ppqn = 24, patternLength = 16, tapEnabled = true, inputs = [], outputs = [], analog = false, adjusters } = {}) {
         // TODO: Add play queueing, play immediately features. Stop queueing as well? (fires at end of current pattern) If not queued, should a sequence position be sent to sync device sequencers?
         this._playing = false;
         this._paused = false;
+        this._inputs = [];
+        this._inputIndex = {};
         this._outputs = [];
+        this._outputIndex = {};
         this.tapEnabled = tapEnabled;
         this._tapTimes = [];
         this._clock = new DigitalClockMaster({ bpm, ppqn, patternLength });
         this.analog = analog;
-        this._clock.on('tick', this._onTick);
-        this._clock.on('start', this._onStart);
-        this._clock.on('stop', this._onStopOnPause);
-        this._clock.on('pause', this._onStopOnPause);
-        this._clock.on('unpause', this._onUnpause);
+        this._setupClockBindings();
+        this._inputMessageFilter = new MessageTypeFilter([
+            new Adjuster({
+                name: 'play-pause',
+                description: 'Play / Pause clock playback.',
+                potPickup: false,
+                type: 0x0B,
+                triggerMap: {
+                    controller: true,
+                    value: 127
+                },
+                handler: () => {
+                    if (this.playing) {
+                        if (this.paused) {
+                            this.unpause();
+                        } else {
+                            this.pause();
+                        }
+                    } else {
+                        this.play();
+                    }
+                }
+            }),
+            new Adjuster({
+                name: 'stop',
+                description: 'Stop clock playback.',
+                potPickup: false,
+                type: 0x0B,
+                triggerMap: {
+                    controller: true,
+                    value: 127
+                },
+                handler: () => {
+                    this.stop();
+                }
+            }),
+            new Adjuster({
+                name: 'tempo',
+                description: 'Adjust clock tempo.',
+                potPickup: true,
+                type: 0x0B,
+                triggerMap: {
+                    controller: true
+                },
+                valueKey: 'value',
+                handler: (value) => {
+                    this.tempo = ((value + 1) * BPM_STEPS) + BPM_MIN;
+                }
+            }),
+        ]);
+        if (adjusters) {
+            this.adjusters = adjusters;
+        }
+        if (Array.isArray(inputs)) {
+            this.addInputs(... inputs);
+        }
         if (Array.isArray(outputs)) {
-            this.add(... outputs);
+            this.addOutputs(... outputs);
+        }
+        this._onMessage = (device, message) => {
+            return this._inputMessageFilter.process(message) === true;
+        }
+    }
+
+    _setupClockBindings() {
+        this._clock.on('tick', (tick, ticks) => {
+            // TODO: check tick pattern position, move any queued outputs into _outputs if ready
+            this._send(MIDI_CLOCK);
+        });
+        this._clock.on('start', () => {
+            this._send(MIDI_START);
+        });
+        let onStopOnPause = () => {
+            this._send(MIDI_STOP);
+        };
+        this._clock.on('stop', onStopOnPause);
+        this._clock.on('pause', onStopOnPause);
+        this._clock.on('unpause', () => {
+            this._send(MIDI_CONT);
+        });
+    }
+
+    get adjusters() {
+        return this._inputMessageFilter.adjusters;
+    }
+
+    set adjusters(adjusters) {
+        this._inputMessageFilter.adjusters = adjusters;
     }
 
     get analog() {
@@ -452,43 +538,90 @@ class Clock {
         return this._playing && this._paused;   // TODO: is ._playing check necessary/desired?
     }
 
-    _onTick(tick, ticks) {
-        // TODO: check tick pattern position, move any queued outputs into _outputs if ready
-        this._send(MIDI_CLOCK);
-    }
-
-    _onStart() {
-        this._send(MIDI_START);
-    }
-
-    _onStopOnPause() {
-        this._send(MIDI_STOP);
-    }
-
-    _onUnpause() {
-        this._send(MIDI_CONT);
-    }
-
     _send(bytes) {
         for (let output of this._outputs) {
             output.sendMessage(bytes);
         }
     }
 
-    add(... outputs) {
+    // noinspection JSMethodCanBeStatic
+    _indexDevice(index, device) {
+        if (!index[device.name]) {
+            index[device.name] = {};
+        }
+        index[device.name][device.port] = true;
+    }
+
+    // noinspection JSMethodCanBeStatic
+    _isDeviceIndexed(index, device) {
+        return !!index[device.name] && !!index[device.name][device.port];
+    }
+
+    // noinspection JSMethodCanBeStatic
+    _unlistDevice(index, device) {
+        if (index[device.name]) {
+            if (index[device.name][device.port]) {
+                delete index[device.name][device.port];
+            }
+            if (!Object.keys(index[device.name]).length) {
+                delete index[device.name];
+            }
+        }
+    }
+
+    addInputs(... inputs) {
+        for (let input of inputs) {
+            if (input instanceof Input) {
+                if (!this._isDeviceIndexed(this._inputIndex, input)) {
+                    input.bind(this._onMessage, true);
+                    this._inputs.push(input);
+                    this._indexDevice(this._inputIndex, input);
+                } else {
+                    logger.warn(`Input was already added to clock. Skipping. (${input})`);
+                }
+            } else {
+                logger.warn(`Invalid entry provided as an Input. (${input})`);
+            }
+        }
+    }
+
+    addOutputs(... outputs) {
         // TODO: address queuing option if clocks are already running
-        // TODO: should we enforce a no-duplicate output rule here? probably yes? we can use output.name/port for matching/indexing
         for (let output of outputs) {
             if (output instanceof Output) {
-                this._outputs.push(output);
+                if (!this._isDeviceIndexed(this._outputIndex, output)) {
+                    this._outputs.push(output);
+                    this._indexDevice(this._outputIndex, output);
+                } else {
+                    logger.warn(`Output was already added to clock. SKipping. (${output})`);
+                }
             } else {
                 logger.warn(`Invalid entry provided as an Output. (${output})`);
             }
         }
     }
 
-    remove(... outputs) {
-        // TODO: remove outputs from this._outputs
+    removeInputs(... inputs) {
+        for (let input of inputs) {
+            if (input instanceof Input) {
+                if (this._isDeviceIndexed(this._inputIndex, input)) {
+                    input.unbind(this._onMessage);
+                    this._unlistDevice(this._inputIndex, input);
+                    tools.removeFromArray(input, this._inputs);
+                }
+            }
+        }
+    }
+
+    removeOutputs(... outputs) {
+        for (let output of outputs) {
+            if (output instanceof Output) {
+                if (this._isDeviceIndexed(this._outputIndex, output)) {
+                    this._unlistDevice(this._outputIndex, output);
+                    tools.removeFromArray(output, this._outputs);
+                }
+            }
+        }
     }
 
     play() {
