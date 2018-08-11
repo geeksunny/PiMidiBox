@@ -168,6 +168,36 @@ class ClockRecord extends ConfigRecord {
 /**
  * TODO
  */
+class SysexRecord extends ConfigRecord {
+    _reset() {
+        this._path = undefined;
+        this._output = undefined;
+    }
+
+    _fromJson(json) {
+        this._path = json.path;
+        this._output = json.output;
+    }
+
+    _toJson() {
+        return {
+            path: this._path,
+            output: this._output
+        };
+    }
+
+    _fromRouter(router) {
+        // TODO: Should Router keep track of sysex files loaded during the session?
+    }
+
+    _toRouter(router) {
+        router.sendSysex(this._path, this._output);
+    }
+}
+
+/**
+ * TODO
+ */
 class OptionsRecord extends ConfigRecord {
     _reset() {
         this._hotplug = true;
@@ -278,6 +308,7 @@ class Configuration extends ConfigRecord {
         this._devices = {};
         this._mappings = {};
         this._clock = new ClockRecord();
+        this._sysex = [];
         this._options = new OptionsRecord();
     }
 
@@ -297,6 +328,13 @@ class Configuration extends ConfigRecord {
                 this._mappings[name].fromJson(json.mappings[name]);
             }
         }
+        if (json.sysex && Array.isArray(json.sysex)) {
+            for (let _sysex of json.sysex) {
+                let record = new SysexRecord();
+                record.fromJson(_sysex);
+                this._sysex.push(record);
+            }
+        }
         this._clock.fromJson(json.clock);
         this._options.fromJson(json.options);
     }
@@ -307,6 +345,7 @@ class Configuration extends ConfigRecord {
             devices: {},
             mappings: {},
             clock: this._clock.toJson(),
+            sysex: [],
             options: this._options.toJson()
         };
         // Device records
@@ -316,6 +355,10 @@ class Configuration extends ConfigRecord {
         // Mapping records
         for (let name in this._mappings) {
             result.mappings[name] = this._mappings[name].toJson();
+        }
+        // Sysex records
+        for (let sysex of this._sysex) {
+            result.sysex.push(sysex.toJson());
         }
         return result;
     }
@@ -366,6 +409,7 @@ class Configuration extends ConfigRecord {
             this._mappings[name].fromJson(json);
         }
         this._clock.fromRouter(router);
+        // TODO: Add Sysex code here if/when session sysex activity is logged
         this._options.fromRouter(router);
     }
 
@@ -394,6 +438,9 @@ class Configuration extends ConfigRecord {
             router.addMapping(name, inputs, outputs, filters);
         }
         this._clock.toRouter(router);
+        for (let sysex of this._sysex) {
+            sysex.toRouter(router);
+        }
         this._options.toRouter(router);
     }
 }

@@ -92,6 +92,10 @@
     "patternLength": 16,
     "tapEnabled": true
   },
+  "sysex": [{
+    "path": "./MelloGlass.sysex",
+    "output": "Tbox1"
+  }],
   "options": {
     "hotplug": true,
     "syncConfigToUsb": true,
