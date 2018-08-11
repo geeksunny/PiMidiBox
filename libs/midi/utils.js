@@ -1,4 +1,4 @@
-const { Core, PortRecord } = require('./core');
+const { Core, Message, PortRecord, PortIndex } = require('./core');
 const logger = require('log4js').getLogger();
 const { MessageTypeFilter } = require('./filter');
 const usb = require('../usb');
@@ -105,5 +105,36 @@ class Monitor {
     }
 }
 
+class SysexLoader {
+    constructor(path, output) {
+        if (!path) {
+            throw "Invalid value for sysex file path";
+        } else if (!output) {
+            throw "Invalid value for sysex file output";
+        }
+        this._message = Message.fromSysexFile(path);
+        if (!PortIndex.count && global.configPath) {
+            PortIndex.populateFromConfig(global.configPath);
+        }
+        let _record = PortIndex.get(output) || PortRecord.parse(output);
+        this._output = Core.openOutputs(_record)[0];
+    }
 
-module.exports = { Monitor };
+    get message() {
+        return this._message;
+    }
+
+    get output() {
+        return this._output;
+    }
+
+    send() {
+        try {
+            this._output.sendMessage(this._message.bytes);
+        } catch (err) {
+            logger.error(`Error occurred during sysex file send.\n${err}`);
+        }
+    }
+}
+
+module.exports = { Monitor, SysexLoader };

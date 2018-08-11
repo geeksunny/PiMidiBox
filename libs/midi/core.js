@@ -1,3 +1,4 @@
+const files = require('../files');
 const fs = require('fs');
 const logger = require('log4js').getLogger();
 const midi = require('midi');
@@ -24,9 +25,11 @@ class PortRecord {
     }
 
     constructor(name, port, nickname) {
-        // TODO: should we validate name/port?
         this._name = name;
-        this._port = parseInt(port);
+        let _port = parseInt(port);
+        if (!Number.isNaN(_port)) {
+            this._port = _port;
+        }
         this._nickname = (!nickname) ? `${tools.StringFormat.pascalCase(name)}___${port}` : nickname;
     }
 
@@ -46,6 +49,21 @@ class PortRecord {
 class PortIndex {
     constructor() {
         this._records = {};
+    }
+
+    populateFromConfig(filePath) {
+        let json = files.readFileAsJSON(filePath);
+        if (json && json.devices) {
+            for (let { 0: name, 1: entry } of Object.entries(json.devices)) {
+                this.put(name, entry);
+            }
+        } else {
+            throw "Invalid data provided for Configuration!";
+        }
+    }
+
+    get count() {
+        return Object.keys(this._records).length;
     }
 
     get records() {

@@ -674,6 +674,17 @@ class Router {
         midi.Core.onExit();
     }
 
+    sendSysex(path, output) {
+        try {
+            let message = midi.Message.fromSysexFile(path);
+            let _record = midi.PortIndex.get(output) || midi.PortRecord.parse(output);
+            let _output = midi.Core.openOutputs(_record)[0];
+            _output.sendMessage(message.bytes);
+        } catch (err) {
+            logger.error(`Error occurred during sysex file send.\n${err}`);
+        }
+    }
+
     get clock() {
         return this._clock;
     }

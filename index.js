@@ -39,6 +39,12 @@ const argv = require('yargs')
         description: 'Monitor mode, reports all MIDI traffic for easy inspection',
         type: 'boolean'
     })
+    .option('s', {
+        alias: 'sysex',
+        default: undefined,
+        description: 'Path to a sysex file to send and the output it should be sent to, separated by a space.',
+        type: 'array'
+    })
     .option('v', {
         alias: 'verbose',
         default: false,
@@ -46,6 +52,7 @@ const argv = require('yargs')
         type: 'boolean'
     })
     .argv;
+global.configPath = argv.config;
 // TODO: Merge argument options with config file options - https://github.com/yargs/yargs/blob/HEAD/docs/api.md#config
 const logger = require('log4js').getLogger();
 logger.level = (argv.verbose) ? 'all' : 'warn'; // TODO: error instead of warn?
@@ -79,6 +86,20 @@ if (argv.configure) {
             ipc.stop();
             process.exit(0);
         });
+    } else if (argv.sysex) {
+        // TODO: Expand and validate file path (argv.sysex[0])
+        const ipc = ipcManager.client('messenger', 'master');
+        ipc.on('error', (e) => {
+            // TODO: Verify what contents of `e` is with no response from an active IPC server. (`ETIMEDOUT`?)
+            const { SysexLoader } = require('./libs/midi/utils');
+            let sysex = new SysexLoader(argv.sysex[0], argv.sysex[1]);
+            sysex.send();
+            process.exit(0);
+        });
+        ipc.start(() => {
+            ipc.emit('router.sysex', { path: argv.sysex[0], output: argv.sysex[1] });
+            process.exit(0);
+        });
     } else {
         const Router = require('./libs/midi/router');
         const midiRouter = new Router.Router();
@@ -106,6 +127,9 @@ if (argv.configure) {
         ipc.start(() => {
             logger.info('IPC server started!');
             midiRouter.loadConfig(argv.config);
+            ipc.on('router.sysex', (args) => {
+                midiRouter.sendSysex(args.path, args.output);
+            });
             // Ready!
             logger.info('Ready.');
         });
