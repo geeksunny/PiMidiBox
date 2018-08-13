@@ -40,6 +40,25 @@ let tools = {
         return Object.freeze(result);
     },
 
+    reverseDict(dict, stackDuplicates = false) {
+        let result = {};
+        for (let { 0: key, 1: val } of Object.entries(dict)) {
+            if (!result[val]) {
+                result[val] = key;
+            } else if (stackDuplicates) {
+                if (!Array.isArray(result[val])) {
+                    result[val] = [ result[val] ];
+                }
+                result[val].push(key);
+            }
+        }
+        return result;
+    },
+
+    escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    },
+
     isEmpty(obj) {
         if (typeof obj === 'undefined' || obj === null) {
             return true;
