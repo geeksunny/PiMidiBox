@@ -97,6 +97,9 @@
     "output": "Tbox1"
   }],
   "options": {
+    "led": {
+      "type": "RasPiStatusLED"
+    },
     "hotplug": true,
     "syncConfigToUsb": true,
     "verbose": true

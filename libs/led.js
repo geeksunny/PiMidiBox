@@ -191,6 +191,13 @@ class LED extends EventEmitter {
         return (blinker && blinker.blinking);
     }
 
+    get config() {
+        return {
+            type: this.constructor.name,
+            opts: this._opts
+        };
+    }
+
     get enabled() {
         return this._ready;
     }
@@ -344,6 +351,7 @@ class RasPiStatusLED extends LED {
 
 class LEDManager {
     constructor() {
+        this._primary = undefined;
         this._gpioIndex = {};
         this._pwmIndex = {};
         this._rasPiStatusLed = undefined;
@@ -353,7 +361,7 @@ class LEDManager {
         let result = [];
         for (let led of [... Object.values(this._gpioIndex), ... Object.values(this._pwmIndex), this._rasPiStatusLed]) {
             if (led) {
-                result.push({ type: led.constructor.name, opts: led.opts });
+                result.push(led.config);
             }
         }
         return result;
@@ -367,16 +375,42 @@ class LEDManager {
             switch (cfg.type) {
                 case 'GpioLED':
                     this._gpioIndex[cfg.opts.pin] = new GpioLED(cfg.opts);
+                    this._ensurePrimary(this._gpioIndex[cfg.opts.pin]);
                     break;
                 case 'PwmLED':
                     this._pwmIndex[cfg.opts.pin] = new PwmLED(cfg.opts);
+                    this._ensurePrimary(this._pwmIndex[cfg.opts.pin]);
                     break;
                 case 'RasPiStatusLED':
                     this._rasPiStatusLed = new RasPiStatusLED();
+                    this._ensurePrimary(this._rasPiStatusLed);
                     break;
                 default:
                     //
             }
+        }
+    }
+
+    get primary() {
+        return this._primary;
+    }
+
+    set primary(led) {
+        if (!(led instanceof LED)) {
+            throw new TypeError("Primary must extend from LED!");
+        }
+        this._primary = led;
+    }
+
+    /**
+     * Ensure that an initial value is set for the primary LED. This is run whenever a new LED is created.
+     *      The first LED created by the manager will always be set as the primary LED.
+     * @param {LED} led
+     * @private
+     */
+    _ensurePrimary(led) {
+        if (!this._primary) {
+            this._primary = led;
         }
     }
 
@@ -393,6 +427,7 @@ class LEDManager {
     gpio(pin, pull = 'NONE') {
         if (!this._gpioIndex[pin]) {
             this._gpioIndex[pin] = new GpioLED({ pin, pull });
+            this._ensurePrimary(this._gpioIndex[pin]);
         }
         return this._gpioIndex[pin];
     }
@@ -409,6 +444,7 @@ class LEDManager {
     pwm(pin) {
         if (!this._pwmIndex[pin]) {
             this._pwmIndex[pin] = new PwmLED({ pin });
+            this._ensurePrimary(this._pwmIndex[pin]);
         }
         return this._pwmIndex[pin];
     }
@@ -420,6 +456,7 @@ class LEDManager {
     get RasPiStatusLED() {
         if (!this._rasPiStatusLed) {
             this._rasPiStatusLed = new RasPiStatusLED();
+            this._ensurePrimary(this._rasPiStatusLed);
         }
         return this._rasPiStatusLed();
     }

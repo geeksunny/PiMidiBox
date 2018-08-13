@@ -1,3 +1,4 @@
+const ledManager = require('../led');
 const logger = require('log4js').getLogger();
 const midi = require('./core');
 const Clock = require('./clock');
@@ -200,12 +201,16 @@ class SysexRecord extends ConfigRecord {
  */
 class OptionsRecord extends ConfigRecord {
     _reset() {
+        this._led = false;
         this._hotplug = true;
         this._syncConfigToUsb = true;
         this._verbose = false;
     }
 
     _fromJson(json) {
+        if (json.led) {
+            this._led = json.led;
+        }
         if (json.hotplug) {
             this._hotplug = json.hotplug;
         }
@@ -219,6 +224,7 @@ class OptionsRecord extends ConfigRecord {
 
     _toJson() {
         return {
+            led: this._led,
             hotplug: this._hotplug,
             syncConfigToUsb: this._syncConfigToUsb,
             verbose: this._verbose
@@ -226,12 +232,17 @@ class OptionsRecord extends ConfigRecord {
     }
 
     _fromRouter(router) {
+        let _led = ledManager.primary;
+        this._led = (_led) ? _led.config : false;
         this._hotplug = router.hotplug;
         this._syncConfigToUsb = router.syncConfigToUsb;
         this._verbose = logger.level.toLowerCase() === 'all';
     }
 
     _toRouter(router) {
+        if (this._led) {
+            ledManager.config = this._led;
+        }
         router.hotplug = this._hotplug;
         router.syncConfigToUsb = this._syncConfigToUsb;
         logger.level = (this._verbose) ? 'all' : 'warn'; // TODO: error instead of warn?
