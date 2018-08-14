@@ -123,5 +123,18 @@ module.exports = {
             _words.push(_chars.join(''));
         }
         return _words.join(' ');
+    },
+    /**
+     * Determine if a given string is an encoded Morse code pattern.
+     * The string will be considered encoded if its character set is limited to '-. /|'
+     * @param {string} s - The string to be tested.
+     * @param {string} [validChars] - Additional valid characters to be considered.
+     * @returns {boolean} True if the string is an encoded Morse code pattern.
+     */
+    isEncoded(s, validChars) {
+        let re = (typeof validChars === 'string' && !!validChars.length)
+            ? new RegExp(`^[-. /|${tools.escapeRegExp(validChars)}]+$`)
+            : /^[-. /|]+$/;
+        return !!re.exec(s);
     }
 };
