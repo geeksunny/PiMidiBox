@@ -103,9 +103,14 @@ if (argv.configure) {
     } else {
         const Router = require('./libs/midi/router');
         const midiRouter = new Router.Router();
+        const ledManager = require('./libs/led');
         // Handle exit events.
         require('signal-exit')((code, signal) => {
             logger.info(`Exit event detected: ${signal} (${code})`);
+            let led = ledManager.primary;
+            if (led) {
+                led.on();
+            }
             midiRouter.onExit();
         });
         process.on('uncaughtException', (err) => {

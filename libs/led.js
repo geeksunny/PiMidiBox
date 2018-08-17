@@ -1,5 +1,6 @@
 const EventEmitter = require('eventemitter3');
 const logger = require('log4js').getLogger();
+const morsecode = require('./morsecode');
 const timing = require('./timing');
 
 class Blinker extends EventEmitter {
@@ -355,6 +356,7 @@ class LEDManager {
         this._gpioIndex = {};
         this._pwmIndex = {};
         this._rasPiStatusLed = undefined;
+        this._alertCache = {};
     }
 
     get config() {
@@ -459,6 +461,29 @@ class LEDManager {
             this._ensurePrimary(this._rasPiStatusLed);
         }
         return this._rasPiStatusLed();
+    }
+
+    /**
+     * Encode a message as Morse code and blink it on the currently set primary LED.
+     * @param {string} msg - The message to be encoded and blinked.
+     * @param {number} [cycles=3] - How many cycles the pattern should be blinked.
+     * @param {boolean} [cache=true] - Should the encoded message pattern be cached for later re-use.
+     */
+    alert(msg, cycles = 3, cache = true) {
+        if (!this._primary) {
+            logger.warn(`Primary LED does not exist; Alert will be ignored.`);
+            return;
+        }
+        let timings;
+        if (cache) {
+            if (!this._alertCache[msg]) {
+                this._alertCache[msg] = morsecode.timings(msg);
+            }
+            timings = this._alertCache[msg];
+        } else {
+            timings = morsecode.timings(msg);
+        }
+        this._primary.blinkPattern(... timings);
     }
 }
 

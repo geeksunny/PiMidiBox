@@ -233,7 +233,7 @@ class OptionsRecord extends ConfigRecord {
 
     _fromRouter(router) {
         let _led = ledManager.primary;
-        this._led = (_led) ? _led.config : false;
+        this._led = (router.led && _led) ? _led.config : false;
         this._hotplug = router.hotplug;
         this._syncConfigToUsb = router.syncConfigToUsb;
         this._verbose = logger.level.toLowerCase() === 'all';
@@ -242,6 +242,7 @@ class OptionsRecord extends ConfigRecord {
     _toRouter(router) {
         if (this._led) {
             ledManager.config = this._led;
+            router.led = true;
         }
         router.hotplug = this._hotplug;
         router.syncConfigToUsb = this._syncConfigToUsb;
@@ -596,6 +597,7 @@ class Router {
         this._paused = false;
         this._clock = undefined;
         this._usb = undefined;
+        this._led = false;
     }
 
     get config() {
@@ -644,6 +646,9 @@ class Router {
         let config = Configuration.fromFile(path);
         config.toRouter(this);
         this._started = true;
+        if (this._led) {
+            ledManager.alert('OK');
+        }
         return true;
     }
 
@@ -766,6 +771,10 @@ class Router {
         if (midi.Core.hotplug !== enabled) {
             midi.Core.hotplug = enabled;
         }
+    }
+
+    set led(led) {
+        this._led = led;
     }
 
     get syncConfigToUsb() {
