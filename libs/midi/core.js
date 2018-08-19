@@ -637,6 +637,9 @@ class Input extends Device {
 
     _cleanup() {
         this.unbindAll();
+        if (this._device) {
+            this._device.removeAllListeners();
+        }
     }
 
     bind(onMessage, highPriorty = false) {
@@ -730,7 +733,7 @@ class Core {
     constructor() {
         this._inputs = {};
         this._outputs = {};
-        this._usbDetect = undefined;
+        this._usb = undefined;
         this.ignoredDevices = IGNORE_DEVICES_DEFAULT;
     }
 
@@ -748,13 +751,12 @@ class Core {
     }
 
     get hotplug() {
-        return this._usbDetect !== undefined;
+        return this._usb !== undefined;
     }
 
     set hotplug(enabled) {
-        // TODO: Should we restrict hotplugging from being enabled again after being disabled once?
-        //  https://github.com/MadLittleMods/node-usb-detection/issues/53
         if (this.hotplug === enabled || typeof enabled !== 'boolean') {
+            logger.warn(`Hotplug assignment was ignored. this.hotplug=${this.hotplug}, parameter hotplug=${hotplug}`);
             return;
         }
         if (enabled) {
