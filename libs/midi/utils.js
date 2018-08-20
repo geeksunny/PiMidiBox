@@ -103,6 +103,11 @@ class Monitor {
             delete this._inputs[name];
         }
     }
+
+    onExit() {
+        this.hotplug = false;
+        Core.onExit();
+    }
 }
 
 class SysexLoader {

@@ -73,10 +73,15 @@ if (argv.configure) {
     process.exit()
 } else if (argv.monitor) {
     let { Monitor } = require('./libs/midi/utils');
-    let m = new Monitor();
-    m.handler = (device, message) => {
-        logger.debug(`Device: ${device.name} | Channel: ${message.channel} | Controller: ${message.controller} | Value: ${message.value}`);
-    };
+    let m = new Monitor({ messageTypes: [] });
+    // Handle exit events.
+    require('signal-exit')((code, signal) => {
+        logger.info(`Exit event detected: ${signal} (${code})`);
+        m.onExit();
+    });
+    // m.handler = (device, message) => {
+    //     logger.debug(`Device: ${device.name} | Channel: ${message.channel} | Controller: ${message.controller} | Value: ${message.value}`);
+    // };
 } else {
     const ipcManager = require('./config/ipc');
     if (argv.kill) {
