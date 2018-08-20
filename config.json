@@ -84,13 +84,19 @@
     }
   },
   "clock": {
+    "inputs": [
+      "Beatstep", "Launchkey"
+    ],
     "outputs": [
       "Tbox2", "Tbox1", "Circuit", "Monostation"
     ],
     "bpm": 120,
     "ppqn": 24,
     "patternLength": 16,
-    "tapEnabled": true
+    "tapEnabled": true,
+    "analog": {
+      "volume": 65
+    }
   },
   "sysex": [{
     "path": "./MelloGlass.sysex",

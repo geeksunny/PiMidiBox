@@ -367,7 +367,10 @@ class AnalogClockMaster extends EventEmitter {
 
     set volume(level) {
         if (typeof level === 'number') {
-            level = tools.clipToRange(Math.abs(level), 0.0, 1.0);
+            level = Math.abs(level);
+            if (level >= 1.0) {
+                level = tools.clipToRange(level / 100, 0.0, 1.0);
+            }
             this._volume = level;
             this._updateWorker({ volume: level });
             this.emit('set', { volume: level });
@@ -483,13 +486,33 @@ class Clock {
         return !!this._analog;
     }
 
-    set analog(enabled) {
+    set analog(analog) {
+        let enabled;
+        let cfg = {};
+        switch (typeof analog) {
+            case 'boolean':
+                enabled = analog;
+                break;
+            case 'object':
+                enabled = (analog.enabled !== undefined) ? analog.enabled : true;
+                if (analog.volume !== undefined) {
+                    cfg.volume = analog.volume;
+                }
+                break;
+            default:
+                throw new TypeError('Value for analog must be a boolean or object.');
+        }
         if (enabled && !this._analog) {
-            this._analog = new AnalogClockMaster({ bpm: this.tempo });
+            cfg.bpm = this.tempo;
+            this._analog = new AnalogClockMaster(cfg);
         } else if (!enabled && !!this._analog) {
             this._analog.kill();
             this._analog = undefined;
         }
+    }
+
+    get volume() {
+        return (!!this._analog) ? this._analog.volume : undefined;
     }
 
     get outputs() {

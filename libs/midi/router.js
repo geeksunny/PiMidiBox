@@ -105,6 +105,8 @@ class ClockRecord extends ConfigRecord {
         this._ppqn = 24;
         this._patternLength = 16;
         this._tapEnabled = false;
+        this._analog = false;
+        this._volume = undefined;
     }
 
     _fromJson(json) {
@@ -129,10 +131,20 @@ class ClockRecord extends ConfigRecord {
         if (json.tapEnabled) {
             this._tapEnabled = json.tapEnabled;
         }
+        if (json.analog !== undefined) {
+            switch (typeof json.analog) {
+                case 'boolean':
+                    this._analog = json.analog;
+                    break;
+                case 'object':
+                    this._analog = (typeof json.analog.enabled === 'boolean') ? json.analog.enabled : true;
+                    this._volume = json.analog.volume;
+            }
+        }
     }
 
     _toJson() {
-        return {
+        let json = {
             adjusters: this._adjusters,
             inputs: this._inputs,
             outputs: this._outputs,
@@ -141,6 +153,15 @@ class ClockRecord extends ConfigRecord {
             patternLength: this._patternLength,
             tapEnabled: this._tapEnabled
         };
+        if (this._volume !== undefined) {
+            json.analog = { volume: this._volume };
+            if (!this._analog) {
+                json.analog.enabled = false;
+            }
+        } else {
+            json.analog = this._analog;
+        }
+        return json;
     }
 
     _fromRouter(router) {
@@ -156,6 +177,8 @@ class ClockRecord extends ConfigRecord {
         this._ppqn = clock.ppqn;
         this._patternLength = clock.patternLength;
         this._tapEnabled = clock.tapEnabled;
+        this._analog = clock.analog;
+        this._volume = clock.volume;
     }
 
     _toRouter(router) {
